@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Vue Inline Html</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.21/vue.min.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <my-event msg='Study Code using Vue on simple file of HTML' />
+    </div>
+
+    <script type="text/x-template" id="my-event">
+        <div>
+            <h1>{{ msg }}</h1>
+            <div>
+                <h2>Create new Event</h2>
+                <input type="text" v-model="eventName" placeholder="Event Name" @keyup.enter="addEvent" />
+                <button @click.prevent="addEvent">Add Event</button>
+                <p>{{erroMsg}}</p>
+            </div>
+            <div>
+                <h2>List Events</h2>
+                <div v-for="(event,i) in Object.keys(events)" :key="i">
+                    <button @click.prevent="selectEvent(event)">{{event}}</button>
+                </div>
+            </div>
+            <div>
+                <h2>Selected Event {{selectedEventName}}</h2>
+                <div v-if="selectedEventName">
+                    <div v-for="(user, i) in users" :key="i">
+                        <span>{{user.name}}</span>
+                        <button v-if="isActive(user.name) == false" @click.prevent="join(user.name)">Join</button>
+                        <button @click.prevent="pay(user.name)">
+                            <span v-if="isPaid(user.name) == false">Pay</span>
+                            <span v-else>Mark as unpaid</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h3>Code</h3>
+                <pre>{{events}}</pre>
+            </div>
+        </div>
+    </script>
+    <script>
+        var MyEvent = Vue.component('my-event', {
+            props: {
+                msg: {
+                    type: String
+                }
+            },
+            data() {
+                return {
+                    erroMsg: '',
+                    users: [{
+                            name: "tau"
+                        },
+                        {
+                            name: "lisa"
+                        },
+                        {
+                            name: "nicole"
+                        },
+                        {
+                            name: "benjamin"
+                        },
+                    ],
+                    events: {},
+                    eventName: '',
+                    selectedEventName: null
+                }
+            },
+            methods: {
+                isActive(name) {
+                    console.log('call isAtive', name)
+
+                    var event = this.events[this.selectedEventName];
+
+                    if (event &&
+                        event[name] &&
+                        event[name]['join'] &&
+                        event[name]['join'] === 1) return true;
+
+                    return false;
+                },
+                isPaid(name) {
+                    console.log('call isPaid', name)
+
+                    var event = this.events[this.selectedEventName];
+
+                    if (event &&
+                        event[name] &&
+                        event[name]['pay'] &&
+                        event[name]['pay'] === true) return true;
+
+                    return false;
+                },
+                addEvent() {
+                    console.log('call addEvent')
+
+                    this.eventName = this.eventName.trim()
+                    if (this.eventName.length >= 3) {
+                        if (this.events.hasOwnProperty(this.eventName)) {
+                            this.erroMsg = 'This event alredy exists.'
+                        } else {
+                            this.events[this.eventName] = this.events[this.eventName] || {}
+                            this.eventName = ''
+                            this.erroMsg = ''
+                        }
+                    } else {
+                        this.erroMsg = 'Event name needs have a minimum 3 characters.'
+                    }
+                },
+                selectEvent(index) {
+                    console.log('call selectEvent', index)
+                    this.selectedEventName = index;
+                },
+                join(name) {
+                    console.log('call join', name)
+                    this.changeAttr(name, 'join')
+                },
+                pay(name) {
+                    console.log('call pay', name)
+                    this.changeAttr(name, 'pay')
+                },
+                changeAttr(userName, field) {
+                    console.log('call changeAttr', userName, field, this.selectedEventName)
+
+                    if (this.selectedEventName) {
+                        var event = this.events[this.selectedEventName]
+                        var user = event[userName] || {}
+                        console.log(1, JSON.stringify(event), JSON.stringify(this.events))
+                        switch (field) {
+                            case 'join':
+                                user[field] = user[field] == 1 ? 0 : 1
+                                break
+                            case 'pay':
+                                user['join'] = user['join'] || 1
+                                user[field] = user[field] == true ? false : true
+                                break
+                        }
+                        // update object
+                        Vue.set(event, userName, user)
+                        console.log(2, JSON.stringify(event), JSON.stringify(this.events))
+                        // update object
+                        this.events = Object.assign({}, this.events)
+                    }
+                },
+            },
+            template: '#my-event',
+        })
+
+        new Vue({
+            el: "#app",
+            components: {
+                MyEvent
+            },
+        });
+    </script>
+
+</body>
+
+</html>
