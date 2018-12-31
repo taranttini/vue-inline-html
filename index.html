@@ -13,136 +13,309 @@
   <div id="app">
     <my-event msg='Study Code using Vue on simple file of HTML' />
   </div>
-  
-
-  <!-- area templates -->
-  <script type="text/x-template" id="my-new-event">
-      <div>
-          <div>
-            <div v-if="showNew"> 
-                <h2>Create new Event</h2>
-                <input type="text" v-model="eventName" placeholder="Event Name" @keyup.enter="addEvent" />
-                <button @click.prevent="addEvent">Add Event</button>
-                <p>{{erroMsg}}</p>
-              </div>
-              <div v-else>
-                <h2>Confirm new event "{{eventName}}"?</h2>
-                <button @click.prevent="confirmEvent">Confirm</button>
-                <button @click="cancelEvent">Cancel</button>
-              </div>
-          </div>
-      </div>
-  </script>
-  <script type="text/x-template" id="my-event">
-      <div>
-          <h1>{{ msg }}</h1>
-          <my-new-event>xxxx</my-new-event>
-          <div>
-              <h2>List Events</h2>
-              <div v-for="(event,i) in Object.keys(events)" :key="i">
-                  <button @click.prevent="selectEvent(event)">{{event}}</button>
-              </div>
-          </div>
-          <div>
-              <h2>Selected Event {{selectedEventName}}</h2>
-              <div v-if="selectedEventName">
-                  <div v-for="(user, i) in users" :key="i">
-                      <span>{{user.name}}</span>
-                      <button v-if="isActive(user.name) == false" @click.prevent="join(user.name)">Join</button>
-                      <button @click.prevent="pay(user.name)">
-                          <span v-if="isPaid(user.name) == false">Pay</span>
-                          <span v-else>Mark as unpaid</span>
-                      </button>
-                  </div>
-              </div>
-          </div>
-          <div>
-              <h3>Code</h3>
-              <pre>{{events}}</pre>
-          </div>
-      </div>
-  </script>
 
   <script>
 
-    var events = {};
+    function addStorage(data) {
+      try {
+        window.localStorage.setItem('events', JSON.stringify(data))
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    function getStorage() {
+      try {
+        if (window.localStorage.hasOwnProperty('events')) {
+          store.state.events = Object.assign({}, JSON.parse(window.localStorage.events));
+          console.log('data loaded')
+        }
+      } catch (err) {
+        console.error(err)
+      }
+    }
 
-    var EventBus = new Vue();
+    var store = {
+      debug: true,
+      state: {
+        isProcessing: false,
+        events: { Event1: {} },
+        eventName: null,
+        selectedEvent: null,
+        users: [
+          { name: "tau" },
+          { name: "lisa" },
+          { name: "nicole" },
+          { name: "benjamin" },
+        ],
+      },
+      setProcessing(value) {
+        if (this.debug) console.log('call setProcessing');
+        this.state.isProcessing = value;
+      },
+      addEvent(eventName) {
+        if (this.debug) console.log('call addEvent');
+        this.state.isProcessing = true;
+
+        return new Promise((resolve, reject) => {
+
+          this.state.isProcessing = false;
+
+          if (eventName.length < 3) {
+            reject('Event name needs have a minimum 3 characters.')
+
+          } else if (this.state.events.hasOwnProperty(eventName)) {
+            reject('This event already exists.')
+          } else {
+            this.state.events[eventName] = this.state.events[eventName] || {};
+            //update object
+            this.state.events = Object.assign({}, this.state.events)
+
+            addStorage(this.state.events);
+
+            resolve('Event has been created');
+          }
+        })
+      },
+      loadEvents() {
+        if (window.localStorage.hasOwnProperty('events')) {
+          this.state.events = Object.assign({}, JSON.parse(window.localStorage.events));
+        }
+
+      },
+      selectEvent(eventName) {
+        if (this.debug) console.log('call selectEvent');
+
+        this.state.eventName = eventName;
+        this.state.selectedEvent = this.state.events[eventName];
+      },
+      userPayEvent(userName) {
+        if (this.debug) console.log('call userPayEvent');
+        this.changeAttr(userName, 'pay')
+      },
+      userJoinEvent(userName) {
+        if (this.debug) console.log('call userJoinEvent');
+        this.changeAttr(userName, 'join')
+      },
+      changeAttr(userName, field) {
+        console.log('call changeAttr', userName, field, this.state.selectedEvent);
+
+
+        if (this.state.eventName) {
+
+          var event = this.state.selectedEvent;
+          var user = event[userName] || {};
+          console.log(1, JSON.stringify(event), JSON.stringify(this.state.events));
+          switch (field) {
+            case 'join':
+              user[field] = user[field] == 1 ? 0 : 1;
+              break;
+            case 'pay':
+              user['join'] = user['join'] || 1;
+              user[field] = user[field] == true ? false : true;
+              break;
+          }
+          // update object
+          Vue.set(event, userName, user);
+          console.log(2, JSON.stringify(event), JSON.stringify(this.state.events));
+          // update object
+          this.state.events = Object.assign({}, this.state.events);
+          //EventBus.$emit('updateEvents', this.this.state.events)
+        }
+      },
+
+    }
+  </script>
+
+  <script type="text/x-template" id="my-confirm">
+    <div>
+      <h2>{{msg}}</h2>
+      <button @click.prevent="confirm">Confirm</button>
+      <button @click.prevent="cancel">Cancel</button>
+    </div>
+  </script>
+  <script>
+    var MyConfirm = Vue.component('my-confirm', {
+      props: {
+        component: String,
+        msg: {
+          type: String,
+          required: true
+        }
+      },
+      methods: {
+        confirm() { EventBus.$emit(this.component + 'Confirm'); },
+        cancel() { EventBus.$emit(this.component + 'Cancel'); }
+      },
+      template: '#my-confirm'
+    })
+  </script>
+
+
+  <script type="text/x-template" id="my-new-event">
+    <div>
+      <div>
+        <div v-if="isProcessing">processing...</div>
+        <div v-if="showNew"> 
+          <h2>Create new Event</h2>
+          <input type="text" v-model="eventName" placeholder="Event Name" @keyup.enter="addEvent" />
+          <button @click.prevent="addEvent">Add Event</button>
+        </div>
+        <my-confirm :component='component' :msg="msgConfirm" v-else></my-confirm>
+        <p>{{errorMsg}}</p>
+      </div>
+    </div>
+  </script>
+  <script>
 
     var MyNewEvent = Vue.component('my-new-event', {
-      data () {
+      data() {
         return {
+          component: 'newEvent',
           eventName: '',
-          erroMsg: '',
+          errorMsg: '',
           showNew: true,
-          events
+          sharedEvents: store.state
+        }
+      },
+      created() {
+        EventBus.$on(this.component + 'Confirm', () => { this.confirmEvent() });
+        EventBus.$on(this.component + 'Cancel', () => { this.cancelEvent() });
+      },
+      mounted() {
+        console.log('carregoussssss')
+        EventBus.$on('loadedEvents', (events) => {
+          this.events = events;
+          //this.events = Object.assign({}, events);
+          console.log('carregou')
+        })
+      },
+      computed: {
+        isProcessing() {
+          return this.sharedEvents.isProcessing;
+        },
+        msgConfirm() {
+          return `Confirm new event "${this.eventName}"?`
         }
       },
       methods: {
         addEvent() {
           console.log('call addEvent');
-
-          this.eventName = this.eventName.trim();
-          if (this.eventName.length >= 3) {
-            this.showNew = false;
-          } else {
-            this.erroMsg = 'Event name needs have a minimum 3 characters.';
-          }
+          this.errorMsg = ''
+          this.showNew = false;
         },
         confirmEvent() {
           console.log('call confirmEvent');
 
-          if (events.hasOwnProperty(this.eventName)) {
-              this.erroMsg = 'This event alredy exists.';
-            } else {
-              this.events[this.eventName] = this.events[this.eventName] || {};
+          this.eventName = this.eventName.trim();
 
-              this.eventName = '';
-              this.erroMsg = '';
-              this.showNew = true;
-              // update objects
-              this.events = Object.assign({}, this.events);
-              EventBus.$emit('updateEvents', this.events);
-            }
+          store.addEvent(this.eventName)
+            .then((e) => {
+              this.eventName = ''
+              this.errorMsg = e
+              this.showNew = true
+            })
+            .catch((e) => {
+              this.errorMsg = e
+              this.showNew = true
+            })
         },
         cancelEvent() {
           console.log('call cancelEvent');
           this.showNew = true;
         }
       },
+      components: {
+        MyConfirm
+      },
       template: '#my-new-event'
     })
+  </script>
 
-    var MyEvent = Vue.component('my-event', {
-      props: {
-        msg: {
-          type: String
-        }
-      },
+  <script type="text/x-template" id="my-event-list">
+    <div>
+      <h2>List Events</h2>
+      <div v-for="(event,i) in Object.keys(events)" :key="i">
+        <button @click.prevent="selectEvent(event)">{{event}} {{isActive(event)}}</button>
+      </div>
+    </div>
+  </script>
+  <script>
+    var MyEventList = Vue.component('my-event-list', {
       data() {
         return {
-          erroMsg: '',
-          users: [
-            {name: "tau"},
-            {name: "lisa"},
-            {name: "nicole"},
-            {name: "benjamin"},
-          ],
-          eventName: '',
-          events,
-          selectedEventName: null
+          sharedEvents: store.state
+        }
+      },
+      computed: {
+        events() {
+          return this.sharedEvents.events
+        }
+      },
+      methods: {
+        selectEvent(eventName) {
+          console.log('call selectEvent', eventName);
+          //this.selectedEventName = eventName;
+          store.selectEvent(eventName)
+        },
+        isActive(eventName) {
+          return this.sharedEvents.eventName == eventName ? 'active' : '';
+        }
+      },
+      template: '#my-event-list'
+    });
+  </script>
+
+  <script type="text/x-template" id="my-selected-event">
+    <div>
+        <h2>Selected Event {{eventName}}</h2>
+        <div v-if="selectedEvent">
+            <my-confirm v-if="showConfirm" :component="component" :msg="msgConfirm"></my-confirm>
+            <div v-for="(user, i) in users" :key="i">
+                <span>{{user.name}}</span>
+                  <button :disabled="showConfirm" v-if="isActive(user.name) == false" @click.prevent="join(user.name, $event)">Join</button>
+                  <button :disabled="showConfirm" @click.prevent="pay(user.name, $event)">
+                      <span v-if="isPaid(user.name) == false">Pay</span>
+                      <span v-else>Mark as unpaid</span>
+                  </button>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</script>
+  <script>
+    var MySelectedEvent = Vue.component('my-selected-event', {
+      data() {
+        return {
+          sharedEvents: store.state,
+          component: 'selectedEvent',
+          selectedName: null,
+          showConfirm: false,
+          selectedAction: null,
+          msgConfirm: ''
         }
       },
       created() {
-        EventBus.$on('updateEvents', (events)=> { 
-          this.events = events; 
-        })
+        EventBus.$on(this.component + 'Confirm', () => { this.confirmAction() });
+        EventBus.$on(this.component + 'Cancel', () => { this.cancelAction() });
+      },
+      computed: {
+        eventName() {
+          return this.sharedEvents.eventName
+        },
+        users() {
+          return this.sharedEvents.users
+        },
+        selectedEvent() {
+          return this.sharedEvents.selectedEvent
+        },
+        //msgConfirm () {return 'confirm this action?'}
       },
       methods: {
         isActive(name) {
           console.log('call isAtive', name);
 
-          var event = this.events[this.selectedEventName];
+          var event = this.selectedEvent; // this.events[this.selectedEventName];
 
           if (event &&
             event[name] &&
@@ -153,8 +326,7 @@
         },
         isPaid(name) {
           console.log('call isPaid', name)
-
-          var event = this.events[this.selectedEventName];
+          var event = this.selectedEvent;
 
           if (event &&
             event[name] &&
@@ -163,50 +335,86 @@
 
           return false;
         },
-        selectEvent(index) {
-          console.log('call selectEvent', index);
-          this.selectedEventName = index;
+        selectEvent(eventName) {
+          console.log('call selectEvent', eventName);
+          store.selectEvent(eventName)
         },
-        join(name) {
+        callConfirmAction(actionName, userName, actionText) {
+          this.msgConfirm = "Confirm " + actionText + " user " + userName + "?";
+          this.selectedAction = actionName;
+          this.selectedName = userName;
+          this.showConfirm = true;
+        },
+        join(userName, e) {
           console.log('call join', name);
-          this.changeAttr(name, 'join');
+          //store.userJoinEvent(userName)
+          this.callConfirmAction('join', userName, e.target.innerText);
         },
-        pay(name) {
-          console.log('call pay', name);
-          this.changeAttr(name, 'pay');
+        pay(userName, e) {
+          console.log('call pay', userName);
+          //store.userPayEvent(userName);
+          this.callConfirmAction('pay', userName, e.target.innerText);
         },
-        changeAttr(userName, field) {
-          console.log('call changeAttr', userName, field, this.selectedEventName);
-
-          if (this.selectedEventName) {
-            var event = this.events[this.selectedEventName];
-            var user = event[userName] || {};
-            console.log(1, JSON.stringify(event), JSON.stringify(this.events));
-            switch (field) {
-              case 'join':
-                user[field] = user[field] == 1 ? 0 : 1;
-                break;
-              case 'pay':
-                user['join'] = user['join'] || 1;
-                user[field] = user[field] == true ? false : true;
-                break;
-            }
-            // update object
-            Vue.set(event, userName, user);
-            console.log(2, JSON.stringify(event), JSON.stringify(this.events));
-            // update object
-            this.events = Object.assign({}, this.events);
-            //EventBus.$emit('updateEvents', this.events)
+        confirmAction() {
+          switch (this.selectedAction) {
+            case 'pay':
+              store.userPayEvent(this.selectedName);
+              break;
+            case 'join':
+              store.userJoinEvent(this.selectedName);
+              break;
           }
+          this.showConfirm = false;
         },
+        cancelAction() {
+          console.log('call cancel')
+          this.showConfirm = false;
+        }
       },
       components: {
-        MyNewEvent
+        MyConfirm
+      },
+      template: '#my-selected-event'
+    })
+  </script>
+
+
+  <script type="text/x-template" id="my-event">
+      <div>
+          <my-new-event />
+          <my-event-list />
+          <my-selected-event />
+          
+          <div>
+              <h3>Code</h3>
+              <pre>{{sharedEvents}}</pre>
+          </div>
+      </div>
+  </script>
+
+  <script>
+
+
+    var EventBus = new Vue();
+
+    var MyEvent = Vue.component('my-event', {
+      data() {
+        return {
+          sharedEvents: store.state
+        }
+      },
+      created() {
+        getStorage()
+      },
+      components: {
+        MyNewEvent,
+        MyEventList,
+        MySelectedEvent,
       },
       template: '#my-event',
     })
 
-    
+
 
     new Vue({
       el: "#app",
