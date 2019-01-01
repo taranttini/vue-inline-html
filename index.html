@@ -122,6 +122,42 @@
           //EventBus.$emit('updateEvents', this.this.state.events)
         }
       },
+      addUser(user) {
+        if (this.debug) console.log('call addEvent');
+        
+        return new Promise((resolve, reject) => {
+          if(
+            user.name === undefined || 
+            user.name.toString().trim().length === 0) {
+            reject('blank name is not valid.')
+            return;
+          }
+          if (this.state.users.findIndex(u => u.name == user.name) != -1) {
+            reject('this user already exists.')
+            return;
+          }
+          this.state.users.push(user);
+          resolve('this user has been added.')
+        })
+      },
+      updateUser(userName, user) {
+        var index = this.state.users.findIndex(u => u.name == userName)
+
+        return new Promise((resolve, reject) => {
+          if (index == -1) {
+            reject('user not found')
+            return;
+          }
+          if(user.name === undefined || 
+            user.name.toString().trim().length === 0) {
+            reject('blank name is not valid.')
+            return;
+          }
+          Vue.set(this.state.users, index, user)
+          resolve('this user has been updated.')
+        })
+        
+      }
 
     }
   </script>
@@ -282,7 +318,7 @@
             </div>
         </div>
     </div>
-</script>
+  </script>
   <script>
     var MySelectedEvent = Vue.component('my-selected-event', {
       data() {
@@ -309,13 +345,12 @@
         selectedEvent() {
           return this.sharedEvents.selectedEvent
         },
-        //msgConfirm () {return 'confirm this action?'}
       },
       methods: {
         isActive(name) {
           console.log('call isAtive', name);
 
-          var event = this.selectedEvent; // this.events[this.selectedEventName];
+          var event = this.selectedEvent;
 
           if (event &&
             event[name] &&
@@ -379,11 +414,133 @@
   </script>
 
 
+  <script type="text/x-template" id="my-event-users">
+    <div v-if="listUsers">
+      <h2>User List</h2>
+      <ul>
+        <li v-for="user in users">
+          {{ user.name }} <button @click.prevent="edit(user)">Edit</button>
+        </li>
+      </ul>
+      <button @click.prevent="newUser">New User</button>
+    </div>
+  </script>
+  <script>
+    var MyEventUsers = Vue.component('my-event-users', {
+      data () {
+        return {
+          listUsers: true,
+          sharedEvents: store.state
+        }
+      },
+      created() {
+        EventBus.$on('listUsers', ()=> {
+          this.listUsers = true;
+        })
+      },
+      computed: {
+        users() {
+          return this.sharedEvents.users;
+        }
+      },
+      methods: {
+        edit(user) {  
+          this.listUsers = false;
+          EventBus.$emit('editUser', user)
+        },
+        newUser() {
+          this.listUsers = false;
+          EventBus.$emit('newUser');
+        }
+      },
+      template: '#my-event-users'
+    })
+  </script>
+
+  <script type="text/x-template" id="my-user-data">
+    <div v-if="editData">
+      <h2>{{mode}} User</h2>
+      <div>
+        <label>Name</label>
+        <input type="text" v-model="user.name"  @keyup.enter="save" />
+      </div>
+      <div>
+          <label>Email</label>
+          <input type="email" v-model="user.email" @keyup.enter="save" />
+      </div>
+      <div>
+        <button @click.prevent="save">Save</button>
+        <button @click.prevent="cancel">Cancel</button>
+      </div>
+      <p>{{msg}}</p>
+    </div>
+  </script>
+  <script>
+    var MyUserData = Vue.component('my-user-data', {
+      data () {
+        return {
+          editData: false,
+          user: {},
+          userName: '',
+          mode: '',
+          msg: '',
+        }
+      },
+      created() {
+        EventBus.$on('editUser', (user) => {
+          this.user = Object.assign({}, user)
+          this.userName = user.name;
+          this.mode = 'Edit'
+          this.editData = true;
+          this.msg = ''
+        });
+
+        EventBus.$on('newUser', (user) => {
+          this.user = {}
+          this.mode = 'New'
+          this.editData = true;
+          this.msg = ''
+        })
+      },
+      methods: {
+        save() { 
+          console.log('call save')
+          //store.updateUser(this.user)
+          var data = {};
+
+          if (this.mode === 'Edit') {
+            data = store.updateUser(this.userName, this.user)
+          } else {
+            data = store.addUser(this.user)
+          }
+          data.then((e) => {
+            this.goToUserList()
+          })
+          data.catch((e) => {
+            this.msg = e
+          })
+        },
+        cancel() {  
+          console.log('call cancel')
+          this.goToUserList();
+        },
+        goToUserList() {
+          console.log('call goToUserList')
+          this.editData = false;
+          EventBus.$emit('listUsers');
+        }
+      },
+      template: '#my-user-data'
+    })
+  </script>
+
   <script type="text/x-template" id="my-event">
       <div>
           <my-new-event />
           <my-event-list />
           <my-selected-event />
+          <my-event-users />
+          <my-user-data />
           
           <div>
               <h3>Code</h3>
@@ -410,6 +567,8 @@
         MyNewEvent,
         MyEventList,
         MySelectedEvent,
+        MyEventUsers,
+        MyUserData
       },
       template: '#my-event',
     })
