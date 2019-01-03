@@ -41,12 +41,7 @@
         events: { Event1: {} },
         eventName: null,
         selectedEvent: null,
-        users: [
-          { name: "tau" },
-          { name: "lisa" },
-          { name: "nicole" },
-          { name: "benjamin" },
-        ],
+        users: {},
       },
       setProcessing(value) {
         if (this.debug) console.log('call setProcessing');
@@ -132,19 +127,20 @@
             reject('blank name is not valid.')
             return;
           }
-          if (this.state.users.findIndex(u => u.name == user.name) != -1) {
+          /*if (this.state.users.findIndex(u => u.name == user.name) != -1) {
             reject('this user already exists.')
             return;
-          }
-          this.state.users.push(user);
+          }*/
+          var key = '_' + Math.random().toString(36).substr(2, 9);
+          this.state.users[key] = user;
           resolve('this user has been added.')
         })
       },
-      updateUser(userName, user) {
-        var index = this.state.users.findIndex(u => u.name == userName)
+      updateUser(userKey, user) {
+        var hasKey = this.state.users.hasOwnProperty(userKey)
 
         return new Promise((resolve, reject) => {
-          if (index == -1) {
+          if (!hasKey) {
             reject('user not found')
             return;
           }
@@ -153,7 +149,7 @@
             reject('blank name is not valid.')
             return;
           }
-          Vue.set(this.state.users, index, user)
+          Vue.set(this.state.users, userKey, user)
           resolve('this user has been updated.')
         })
 
@@ -191,7 +187,7 @@
     <div>
       <div>
         <div v-if="isProcessing">processing...</div>
-        <div v-if="showNew"> 
+        <div v-if="showNew">
           <h2>Create new Event</h2>
           <input type="text" v-model="eventName" placeholder="Event Name" @keyup.enter="addEvent" />
           <button @click.prevent="addEvent">Add Event</button>
@@ -305,15 +301,15 @@
         <h2>Selected Event {{eventName}}</h2>
         <div v-if="selectedEvent">
             <my-confirm v-if="showConfirm" :component="component" :msg="msgConfirm"></my-confirm>
-            <div v-for="(user, i) in users" :key="i">
+            <div v-for="(user, key) in users" :key="key">
                 <span>{{user.name}}</span>
-                  <button :disabled="showConfirm" v-if="isActive(user.name) == false" @click.prevent="join(user.name, $event)">Join</button>
-                  <button :disabled="showConfirm" @click.prevent="pay(user.name, $event)">
-                      <span v-if="isPaid(user.name) == false">Pay</span>
+                  <button :disabled="showConfirm" v-if="isActive(key) == false" @click.prevent="join(key, user.name, $event)">Join</button>
+                  <button :disabled="showConfirm" @click.prevent="pay(key, user.name, $event)">
+                      <span v-if="isPaid(key) == false">Pay</span>
                       <span v-else>Mark as unpaid</span>
                   </button>
                 </div>
-                
+
             </div>
         </div>
     </div>
@@ -346,26 +342,26 @@
         },
       },
       methods: {
-        isActive(name) {
-          console.log('call isAtive', name);
+        isActive(userKey) {
+          console.log('call isAtive', userKey);
 
           var event = this.selectedEvent;
 
           if (event &&
-            event[name] &&
-            event[name]['join'] &&
-            event[name]['join'] === 1) return true;
+            event[userKey] &&
+            event[userKey]['join'] &&
+            event[userKey]['join'] === 1) return true;
 
           return false;
         },
-        isPaid(name) {
-          console.log('call isPaid', name)
+        isPaid(userKey) {
+          console.log('call isPaid', userKey)
           var event = this.selectedEvent;
 
           if (event &&
-            event[name] &&
-            event[name]['pay'] &&
-            event[name]['pay'] === true) return true;
+            event[userKey] &&
+            event[userKey]['pay'] &&
+            event[userKey]['pay'] === true) return true;
 
           return false;
         },
@@ -373,21 +369,21 @@
           console.log('call selectEvent', eventName);
           store.selectEvent(eventName)
         },
-        callConfirmAction(actionName, userName, actionText) {
+        callConfirmAction(actionName, key, userName, actionText) {
           this.msgConfirm = "Confirm " + actionText + " user " + userName + "?";
           this.selectedAction = actionName;
-          this.selectedName = userName;
+          this.selectedName = key;
           this.showConfirm = true;
         },
-        join(userName, e) {
+        join(key, userName, e) {
           console.log('call join', name);
           //store.userJoinEvent(userName)
-          this.callConfirmAction('join', userName, e.target.innerText);
+          this.callConfirmAction('join', key, userName, e.target.innerText);
         },
-        pay(userName, e) {
+        pay(key, userName, e) {
           console.log('call pay', userName);
           //store.userPayEvent(userName);
-          this.callConfirmAction('pay', userName, e.target.innerText);
+          this.callConfirmAction('pay', key, userName, e.target.innerText);
         },
         confirmAction() {
           switch (this.selectedAction) {
@@ -417,8 +413,8 @@
     <div>
       <h2>User List</h2>
       <ul>
-        <li v-for="user in users">
-          {{ user.name }} <button @click.prevent="edit(user)">Edit</button>
+        <li v-for="(user, key) in users">
+          <span>{{ user.name }}</span><button @click.prevent="edit(key, user)">Edit</button>
         </li>
       </ul>
     </div>
@@ -436,8 +432,12 @@
         }
       },
       methods: {
-        edit(user) {
-          EventBus.$emit('showUserEdit', user)
+        edit(key, user) {
+          var userEdit = {
+            key: key,
+            data: user
+          }
+          EventBus.$emit('showUserEdit', userEdit)
         },
       },
       template: '#my-user-list'
@@ -468,7 +468,7 @@
       data() {
         return {
           user: {},
-          userName: '',
+          userKey: '',
           mode: '',
           msg: '',
           editData: false
@@ -479,9 +479,9 @@
           this.editData = false
         })
 
-        EventBus.$on('showUserEdit', (user) => {
-          this.user = Object.assign({}, user)
-          this.userName = user.name;
+        EventBus.$on('showUserEdit', user => {
+          this.user = Object.assign({}, user.data)
+          this.userName = user.key;
           this.mode = 'Edit'
           this.msg = ''
           this.editData = true
