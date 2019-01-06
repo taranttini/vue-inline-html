@@ -71,16 +71,16 @@
         selectedEvent: null,
         users: {},
       },
-      guid() {
-        return '_' + Math.random().toString(36).substr(2, 9);
-      },
+      
       setProcessing(value) {
         util.log('call setProcessing', value);
         store.state.isProcessing = value;
       },
+
       event: {
 
         add(event) {
+
           util.log('call event.add', event);
           store.state.isProcessing = true;
 
@@ -111,6 +111,7 @@
         },
 
         update(event) {
+
           util.log('call event.update', event);
 
           var key = store.state.eventKey
@@ -137,6 +138,7 @@
         },
 
         load() {
+
           util.log('call event.load');
 
           if (window.localStorage.hasOwnProperty('events')) {
@@ -145,6 +147,7 @@
         },
 
         select(eventKey) {
+
           util.log('call event.select', eventKey);
 
           var event = store.state.events[eventKey];
@@ -152,80 +155,95 @@
           store.state.selectedEvent = event;
         },
       },
-      userPayEvent(userName) {
-        if (this.debug) util.log('call userPayEvent');
-        this.changeAttr(userName, 'pay')
-      },
-      userJoinEvent(userName) {
-        if (this.debug) util.log('call userJoinEvent');
-        this.changeAttr(userName, 'join')
-      },
-      changeAttr(userName, field) {
-        util.log('call changeAttr', userName, field, this.state.selectedEvent);
+
+      user: {
+
+        payEvent(userName) {
+
+          if (this.debug) util.log('call user.payEvent');
+          this.changeAttr(userName, 'pay')
+        },
+
+        joinEvent(userName) {
+
+          if (this.debug) util.log('call user.joinEvent');
+          this.changeAttr(userName, 'join')
+        },
+
+        changeAttr(userName, field) {
+
+          util.log('call changeAttr', userName, field, store.state.selectedEvent);
 
 
-        if (this.state.eventKey) {
+          if (store.state.eventKey) {
 
-          var event = this.state.selectedEvent;
-          var users = event.users || {} ;
-          var user = users[userName] || {};
+            var event = store.state.selectedEvent;
+            var users = event.users || {} ;
+            var user = users[userName] || {};
 
-          util.log(1, JSON.stringify({e:event,u:user,us:users,s:this.state.events}));
-          switch (field) {
-            case 'join':
-              user[field] = user[field] == 1 ? 0 : 1;
-              break;
-            case 'pay':
-              user['join'] = user['join'] || 1;
-              user[field] = user[field] == true ? false : true;
-              break;
+            util.log(1, JSON.stringify({e:event,u:user,us:users,s:store.state.events}));
+            switch (field) {
+              case 'join':
+                user[field] = user[field] == 1 ? 0 : 1;
+                break;
+              case 'pay':
+                user['join'] = user['join'] || 1;
+                user[field] = user[field] == true ? false : true;
+                break;
+            }
+            // update object users[userName] = user
+            Vue.set(users, userName, user);
+
+            util.log(2, JSON.stringify({e:event,u:user,us:users,s:store.state.events}));
+            // update object event[users] = users
+            Vue.set(event, 'users', users)
+            util.log(3, JSON.stringify({e:event,u:user,us:users,s:store.state.events}));
+            // update object
+            store.state.events = Object.assign({}, store.state.events);
           }
-          // update object users[userName] = user
-          Vue.set(users, userName, user);
+        },
 
-          util.log(2, JSON.stringify({e:event,u:user,us:users,s:this.state.events}));
-          // update object event[users] = users
-          Vue.set(event, 'users', users)
-          util.log(3, JSON.stringify({e:event,u:user,us:users,s:this.state.events}));
-          // update object
-          this.state.events = Object.assign({}, this.state.events);
+        add (user) {
+
+          if (store.debug) util.log('call user.add', user);
+
+          return new Promise((resolve, reject) => {
+            if (
+              user.name === undefined ||
+              user.name.toString().trim().length === 0) {
+              reject('blank name is not valid.')
+              return;
+            }
+            var key = util.guid()
+            store.state.users[key] = user;
+
+            addStorage();
+
+            resolve('this user has been added.')
+          })
+        },
+
+        update(userKey, user) {
+
+          if (store.debug) util.log('call user.update', userKey, user);
+
+          var hasKey = store.state.users.hasOwnProperty(userKey)
+
+          return new Promise((resolve, reject) => {
+            if (!hasKey) {
+              reject('user not found')
+              return;
+            }
+            if (user.name === undefined ||
+              user.name.toString().trim().length === 0) {
+              reject('blank name is not valid.')
+              return;
+            }
+            Vue.set(store.state.users, userKey, user)
+            resolve('this user has been updated.')
+          })
+
         }
-      },
-      addUser(user) {
-        if (this.debug) util.log('call addEvent');
-
-        return new Promise((resolve, reject) => {
-          if (
-            user.name === undefined ||
-            user.name.toString().trim().length === 0) {
-            reject('blank name is not valid.')
-            return;
-          }
-          var key = util.guid()
-          this.state.users[key] = user;
-
-          addStorage();
-
-          resolve('this user has been added.')
-        })
-      },
-      updateUser(userKey, user) {
-        var hasKey = this.state.users.hasOwnProperty(userKey)
-
-        return new Promise((resolve, reject) => {
-          if (!hasKey) {
-            reject('user not found')
-            return;
-          }
-          if (user.name === undefined ||
-            user.name.toString().trim().length === 0) {
-            reject('blank name is not valid.')
-            return;
-          }
-          Vue.set(this.state.users, userKey, user)
-          resolve('this user has been updated.')
-        })
-
       }
 
     }
@@ -503,21 +521,21 @@
         },
         join(key, userName, e) {
           util.log('call join', name);
-          //store.userJoinEvent(userName)
+          //store.user.joinEvent(userName)
           this.callConfirmAction('join', key, userName, e.target.innerText);
         },
         pay(key, userName, e) {
           util.log('call pay', userName);
-          //store.userPayEvent(userName);
+          store.user.payEvent(userName);
           this.callConfirmAction('pay', key, userName, e.target.innerText);
         },
         confirmAction() {
           switch (this.selectedAction) {
             case 'pay':
-              store.userPayEvent(this.selectedName);
+              store.user.payEvent(this.selectedName);
               break;
             case 'join':
-              store.userJoinEvent(this.selectedName);
+              store.user.joinEvent(this.selectedName);
               break;
           }
           this.showConfirm = false;
@@ -626,9 +644,9 @@
           var data = {};
 
           if (this.mode === 'Edit') {
-            data = store.updateUser(this.userName, this.user)
+            data = store.user.update(this.userName, this.user)
           } else {
-            data = store.addUser(this.user)
+            data = store.user.add(this.user)
           }
           data.then((e) => {
             this.goToUserList()
@@ -741,6 +759,7 @@
                     this.showEventList = false
                     this.showEventNew = false
                     this.showUserList = false
+                    this.showEventUsers = false
                     EventBus.$emit('hideUserData')
                     EventBus.$emit('hideEventData')
                     //this.showUserData = false
