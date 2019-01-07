@@ -19,7 +19,7 @@
 
   <!-- this file have config for you firebase -->
   <script src="firebase-config.js"></script>
-  
+
   <script>
 
     function addStorage() {
@@ -80,14 +80,15 @@
         eventKey: null,
         selectedEvent: null,
         users: {},
-      }
+        googleData: {}
+      },
 
-      ,setProcessing(value) {
+      setProcessing(value) {
         util.log('call setProcessing', value);
         store.state.isProcessing = value;
-      }
+      },
 
-      ,event: {
+      event: {
 
         add(event) {
 
@@ -108,19 +109,27 @@
               reject('This event already exists.')
             }
             else {
-              var key = util.guid();
-              store.state.events[key] = event;
+              // old mode
+              //var key = util.guid();
+              //store.state.events[key] = event;
               //update object
-              store.state.events = Object.assign({}, store.state.events)
+              //store.state.events = Object.assign({}, store.state.events)
+              //addStorage();
+              //resolve('Event has been created');
 
-              addStorage();
-
-              resolve('Event has been created');
+              // google firebase mode
+                google.addData('events', event).then((e)=>{
+                    store.state.events[e] = event;
+                    resolve('this events has been added.')
+                }).catch((e) =>{
+                    util.log('error on google.addData', e)
+                    reject(e);
+                })
             }
           })
-        }
+        },
 
-        ,update(event) {
+        update(event) {
 
           util.log('call event.update', event);
 
@@ -137,12 +146,23 @@
               return;
             }
             else {
+              // old mode
               // update state.event[key] = event
               Vue.set(store.state.events, key, event)
+              //addStorage();
+              //resolve('this event has been updated.')
 
-              addStorage();
-
-              resolve('this event has been updated.')
+              // google mode
+              // google firebase mode
+             google.updateData('events', key, event)
+                .then(()=>{
+                    //return 'this event has been updated.'
+                    resolve('this event has been updated.')
+                })
+                .catch((e)=>{
+                    util.log('error on google.updateData', e)
+                    reject(e)
+                })
             }
           })
         },
@@ -168,28 +188,29 @@
 
       user: {
 
-        payEvent(userName) {
+        payEvent(userKey) {
 
           if (this.debug) util.log('call user.payEvent');
-          this.changeAttr(userName, 'pay')
-        }
+          this.changeAttr(userKey, 'pay')
+        },
 
-        ,joinEvent(userName) {
+        joinEvent(userKey) {
 
           if (this.debug) util.log('call user.joinEvent');
-          this.changeAttr(userName, 'join')
-        }
+          this.changeAttr(userKey, 'join')
+        },
 
-        ,changeAttr(userName, field) {
+        changeAttr(userKey, field) {
 
-          util.log('call changeAttr', userName, field, store.state.selectedEvent);
+          util.log('call changeAttr', userKey, field, store.state.selectedEvent);
 
 
           if (store.state.eventKey) {
 
+            var eventKey = store.state.eventKey;
             var event = store.state.selectedEvent;
             var users = event.users || {};
-            var user = users[userName] || {};
+            var user = users[userKey] || {};
 
             util.log(1, JSON.stringify({ e: event, u: user, us: users, s: store.state.events }));
             switch (field) {
@@ -201,8 +222,8 @@
                 user[field] = user[field] == true ? false : true;
                 break;
             }
-            // update object users[userName] = user
-            Vue.set(users, userName, user);
+            // update object users[userKey] = user
+            Vue.set(users, userKey, user);
 
             util.log(2, JSON.stringify({ e: event, u: user, us: users, s: store.state.events }));
             // update object event[users] = users
@@ -210,10 +231,21 @@
             util.log(3, JSON.stringify({ e: event, u: user, us: users, s: store.state.events }));
             // update object
             store.state.events = Object.assign({}, store.state.events);
-          }
-        }
 
-        ,add(user) {
+            // google firebase mode
+            google.updateEventUserData(eventKey, userKey, user)
+            //google.updateData('events/'+eventKey+'/users', users)
+                .then(()=>{
+                    resolve('this user has been updated.')
+                })
+                .catch((e)=>{
+                    util.log('error on google.updateData', e)
+                    reject(e)
+                })
+          }
+        },
+
+        add(user) {
 
           if (store.debug) util.log('call user.add', user);
 
@@ -224,16 +256,25 @@
               reject('blank name is not valid.')
               return;
             }
-            var key = util.guid()
-            store.state.users[key] = user;
+            // old mode
+            //var key = util.guid()
+            //store.state.users[key] = user;
+            //addStorage();
+            //resolve('this user has been added.')
 
-            addStorage();
+            // google firebase mode
+            google.addData('users', user).then((e)=>{
+                store.state.users[e] = user;
+                resolve('this user has been added.')
+            }).catch((e) =>{
+                util.log('error on google.addData', e)
+                reject(e);
+            })
 
-            resolve('this user has been added.')
           })
-        }
+        },
 
-        ,update(userKey, user) {
+        update(userKey, user) {
 
           if (store.debug) util.log('call user.update', userKey, user);
 
@@ -249,14 +290,26 @@
               reject('blank name is not valid.')
               return;
             }
+            // old mode
             Vue.set(store.state.users, userKey, user)
-            resolve('this user has been updated.')
+            //resolve('this user has been updated.')
+
+            // google firebase mode
+            google.updateData('users', userKey, user)
+                .then(()=>{
+                    resolve('this user has been updated.')
+                })
+                .catch((e)=>{
+                    util.log('error on google.updateData', e)
+                    reject(e)
+                })
+
           })
 
         }
-      }
+      },
 
-      ,login: {
+      login: {
 
         create(login) {
           console.log('login.create', login)
@@ -268,13 +321,13 @@
           if (this.debug) util.log('call login.connect');
 
           return google.login(login);
-          
+
 
           return new Promise((resolve, reject) => {
             console.log(login)
             if(login.email === "demo@demo.com" && login.pass === "demo") {
               resolve('loggin')
-            } 
+            }
             else {
               reject('login invalid')
             }
@@ -296,7 +349,7 @@
         },
 
         create(account) {
-          
+
           return new Promise((resolve, reject) => {
 
           firebase.auth().createUserWithEmailAndPassword(account.email, account.password)
@@ -310,13 +363,13 @@
               var errorMessage = error.message;
 
               if(errorCode == 'auth/weak-password') {
-                reject('A senha é muito fraca.')  
+                reject('A senha é muito fraca.')
               }
               else {
                 reject(errorMessage)
               }
 
-              
+
               // ...
             });
 
@@ -341,11 +394,11 @@
 
                 if (errorCode === 'auth/wrong-password') {
                   reject('Usuário ou senha errados.');
-                } 
+                }
                 else {
                   reject(errorMessage);
                 }
-                
+
                 // ...
               });
 
@@ -357,6 +410,55 @@
           firebase.auth().signOut();
         },
 
+        loadDB() {
+            firebase.database().ref('/').once('value')
+                .then(function(snap){
+
+                    store.state.isProcessing = true;
+                    console.log(snap.val())
+
+                    var data = snap.val();
+                    store.state.googleData = data;
+                    store.state.users = data.users;
+                    store.state.events = data.events;
+
+                })
+        },
+
+        addData(local, data) {
+            // get google key
+            var key = firebase.database().ref().child('local').push().key;
+
+            util.log('call google.add', local, data)
+            // update google data
+            return firebase.database()
+                .ref(local+'/'+key).update(data)
+                .then(()=>{
+                    return key;
+                })
+                .catch((e)=>{
+                    return e
+                });
+
+            // create new google data
+            //return firebase.database().ref(local).set(data);
+        },
+
+        updateData(local, key, data) {
+            util.log('call google.add', local, data)
+            // update google data
+            return firebase.database()
+                .ref(local+'/'+key)
+                .update(data);
+        },
+
+        updateEventUserData(keyEvent, keyUser, data) {
+            util.log('call google.add', keyEvent, keyUser, data)
+            // update google data
+            return firebase.database()
+                .ref('events/'+keyEvent+'/users/'+keyUser)
+                .update(data);
+        }
 
     }
 
@@ -814,7 +916,7 @@
         create() {
           store.login.create(this.login)
 
-          
+
           .then((e)=> {
               this.msg = e
               //EventBus.$emit('login')
@@ -823,12 +925,12 @@
             .catch((e) => {
               this.msg = e
             })
-            
+
         },
 
         connect() {
           store.login.connect(this.login)
-            
+
             .then((e)=> {
               this.msg = e
               EventBus.$emit('login')
@@ -873,6 +975,7 @@
 
           <div>
               <h3>Code</h3>
+              {{load}}
               <pre>{{sharedEvents}}</pre>
           </div>
       </div>
@@ -899,9 +1002,9 @@
       created() {
         getStorage();
 
-        EventBus.$on('login', ()=> { 
+        EventBus.$on('login', ()=> {
           console.log('logou')
-          this.connected = true; 
+          this.connected = true;
           })
 
         EventBus.$on('showEventList', this.selectEventList)
@@ -915,11 +1018,15 @@
         EventBus.$on('showUserEdit', () => {
           this.hideComponents()
         })
-
-        
-
         setTimeout(this.checkLogin(), 1000)
-        
+
+        google.loadDB();
+
+      },
+      computed: {
+        load() {
+            return this.sharedEvents.isProcessing
+        }
       },
       methods: {
         checkLogin() {
@@ -930,8 +1037,8 @@
 
           if ( this.connected == false) {
             setTimeout(this.checkLogin, 1000)
-          } 
-          
+          }
+
         },
         logoff() {
           this.connected = false
@@ -991,9 +1098,9 @@
         MyEvent
       },
     });
- 
-    
-    
+
+
+
   </script>
 
 
