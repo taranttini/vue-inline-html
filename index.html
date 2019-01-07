@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 
 <head>
   <meta charset="UTF-8">
@@ -7,11 +7,19 @@
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Vue Inline Html</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.21/vue.min.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/5.7.2/firebase.js"></script>
+
 </head>
 
 <body>
   <div id="app"></div>
 
+  <!-- https://www.gstatic.com/firebasejs/ui/3.5.1/firebase-ui-auth__pt.js -->
+
+  <!-- this file have config for you firebase -->
+  <script src="firebase-config.js"></script>
+  
   <script>
 
     function addStorage() {
@@ -61,11 +69,14 @@
         return util.isEmpty(obj) || obj.trim().length < value ? true : false;
       }
     }
+
+
     var store = {
       debug: true,
       state: {
         isProcessing: false,
         events: {},
+        isLogged: false,
         eventKey: null,
         selectedEvent: null,
         users: {},
@@ -247,9 +258,17 @@
 
       ,login: {
 
-        connect(login) {
+        create(login) {
+          console.log('login.create', login)
+          return google.create(login);
+        },
 
+        connect(login) {
+          console.log('login.connect', login)
           if (this.debug) util.log('call login.connect');
+
+          return google.login(login);
+          
 
           return new Promise((resolve, reject) => {
             console.log(login)
@@ -266,6 +285,81 @@
       }
 
     }
+
+
+    var google = {
+
+        isLogged() {
+          util.log('call google.isLogged', firebase.auth().currentUser ? true : false)
+          return firebase.auth().currentUser ? true : false
+
+        },
+
+        create(account) {
+          
+          return new Promise((resolve, reject) => {
+
+          firebase.auth().createUserWithEmailAndPassword(account.email, account.password)
+            .then((e) => {
+              resolve(e)
+            })
+            .catch((error) => {
+              console.log('eee', error)
+              // Handle Errors here.
+              var errorCode = error.code;
+              var errorMessage = error.message;
+
+              if(errorCode == 'auth/weak-password') {
+                reject('A senha é muito fraca.')  
+              }
+              else {
+                reject(errorMessage)
+              }
+
+              
+              // ...
+            });
+
+          })
+        },
+
+        login(account) {
+
+          return new Promise((resolve, reject) => {
+
+            firebase.auth().signInWithEmailAndPassword(account.email, account.password)
+              .then((e)=> {
+                console.log(e)
+
+                resolve(e)
+              })
+              .catch((error) => {
+                console.log(error)
+                // Handle Errors here.
+                var errorCode = error.code;
+                var errorMessage = error.message;
+
+                if (errorCode === 'auth/wrong-password') {
+                  reject('Usuário ou senha errados.');
+                } 
+                else {
+                  reject(errorMessage);
+                }
+                
+                // ...
+              });
+
+          })
+        },
+
+        logoff() {
+          util.log('call google.logoff')
+          firebase.auth().signOut();
+        },
+
+
+    }
+
   </script>
 
   <script type="text/x-template" id="my-confirm">
@@ -697,10 +791,11 @@
       </pre>
       <div>
         <div><input type="email" v-model="login.email" placeholder="Email" @keyup.enter="connect" /></div>
-        <div><input type="password" v-model="login.pass" placeholder="Password" @keyup.enter="connect" /></div>
+        <div><input type="password" v-model="login.password" placeholder="Password" @keyup.enter="connect" /></div>
       </div>
       <div>
         <button @click.prevent="connect">Login</button>
+        <button @click.prevent="create">Create</button>
       </div>
       <p>{{msg}}</p>
     </div>
@@ -709,14 +804,31 @@
     var MyLogin = Vue.component('my-login',{
       data() {
         return {
-          login: {}
-          ,msg: ''
+          login: {},
+          msg: ''
         }
       },
+
       methods: {
+
+        create() {
+          store.login.create(this.login)
+
+          
+          .then((e)=> {
+              this.msg = e
+              //EventBus.$emit('login')
+            })
+
+            .catch((e) => {
+              this.msg = e
+            })
+            
+        },
+
         connect() {
           store.login.connect(this.login)
-
+            
             .then((e)=> {
               this.msg = e
               EventBus.$emit('login')
@@ -725,7 +837,10 @@
             .catch((e) => {
               this.msg = e
             })
-        }
+        },
+
+
+
       },
       template: '#my-login'
     })
@@ -735,8 +850,9 @@
 
   <script type="text/x-template" id="my-event">
     <div>
-        <my-login v-if="isOffline"></my-login>
+        <my-login v-if="!connected"></my-login>
         <div v-else>
+          <button @click.prevent="logoff">Logoff</button>
           <h3>Menu</h3>
           <ul>
             <li>Event</li>
@@ -769,7 +885,7 @@
     var MyEvent = Vue.component('my-event', {
       data() {
         return {
-          isOffline: true,
+          connected: false,
           sharedEvents: store.state,
           showEventList: true,
           showEventNew: false,
@@ -785,7 +901,7 @@
 
         EventBus.$on('login', ()=> { 
           console.log('logou')
-          this.isOffline = false; 
+          this.connected = true; 
           })
 
         EventBus.$on('showEventList', this.selectEventList)
@@ -800,12 +916,33 @@
           this.hideComponents()
         })
 
+        
+
+        setTimeout(this.checkLogin(), 1000)
+        
       },
       methods: {
+        checkLogin() {
+
+          this.connected = google.isLogged();
+
+          console.log('checkLogin', new Date(), this.connected)
+
+          if ( this.connected == false) {
+            setTimeout(this.checkLogin, 1000)
+          } 
+          
+        },
+        logoff() {
+          this.connected = false
+          google.logoff()
+        },
+
         selectEventUsers() {
           this.hideComponents()
           this.showEventUsers = true;
         },
+
         selectEventNew() {
           this.hideComponents()
           EventBus.$emit('showEventNew')
@@ -854,6 +991,9 @@
         MyEvent
       },
     });
+ 
+    
+    
   </script>
 
 
