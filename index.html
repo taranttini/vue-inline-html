@@ -22,28 +22,68 @@
 
   <script>
 
+
+  var members = {
+    "KEY": {
+      members: {
+        "key_m1": {
+          name: "aaa", email: "aaa@aaa.com",
+          events: {
+            "key_e1": true,
+            "key_e2": true,
+          }
+        },
+        "key_m2": {
+          name: "bbb", email: "bbb@bbb.com",
+          events: {
+            "key_e1": true,
+          }
+        }
+      },
+      events: {
+        "key_e1": {
+          name: "ccc", description: "ddd",
+          members: {
+            "key_m1": { join: true, pay: true, value: 10 },
+            "key_m2": { join: true, pay: false }
+          }
+        },
+        "key_e2": {
+          name: "ddd", description: "ddd",
+          members: {
+            "key_m1": { join: true, pay: true, value: 5 }
+          }
+        }
+      }
+    }
+  }
+
     function addStorage() {
+      /*
       try {
-        var data = { events: store.state.events, users: store.state.users }
+        var data = { events: store.state.events, members: store.state.members }
         window.localStorage.setItem('data', JSON.stringify(data))
       } catch (err) {
         util.error(err)
       }
+      */
     }
 
     function getStorage() {
+      /*
       try {
         if (window.localStorage.hasOwnProperty('data')) {
           var data = JSON.parse(window.localStorage.data);
           if (!data) return;
 
           store.state.events = Object.assign({}, data.events);
-          store.state.users = Object.assign({}, data.users);
+          store.state.members = Object.assign({}, data.members);
           util.log('data loaded')
         }
       } catch (err) {
         util.error(err)
       }
+      */
     }
 
     var util = {
@@ -79,7 +119,7 @@
         isLogged: false,
         eventKey: null,
         selectedEvent: null,
-        users: {},
+        members: {},
         googleData: {}
       },
 
@@ -105,9 +145,6 @@
             if (util.isLessLength(event.name, 3)) {
               reject('Event name needs have a minimum 3 characters.')
             }
-            else if (store.state.events.hasOwnProperty(event.name)) {
-              reject('This event already exists.')
-            }
             else {
               // old mode
               //var key = util.guid();
@@ -120,10 +157,10 @@
               // google firebase mode
                 google.addData('events', event).then((e)=>{
                     store.state.events[e] = event;
-                    resolve('this events has been added.')
+                    return 'this events has been added.'
                 }).catch((e) =>{
                     util.log('error on google.addData', e)
-                    reject(e);
+                    return e;
                 })
             }
           })
@@ -157,11 +194,11 @@
              google.updateData('events', key, event)
                 .then(()=>{
                     //return 'this event has been updated.'
-                    resolve('this event has been updated.')
+                    return 'this event has been updated.'
                 })
                 .catch((e)=>{
                     util.log('error on google.updateData', e)
-                    reject(e)
+                    return e
                 })
             }
           })
@@ -186,86 +223,88 @@
         },
       },
 
-      user: {
+      member: {
 
-        payEvent(userKey) {
+        payEvent(memberKey) {
 
-          if (this.debug) util.log('call user.payEvent');
-          this.changeAttr(userKey, 'pay')
+          if (this.debug) util.log('call member.payEvent');
+          this.changeAttr(memberKey, 'pay')
         },
 
-        joinEvent(userKey) {
+        joinEvent(memberKey) {
 
-          if (this.debug) util.log('call user.joinEvent');
-          this.changeAttr(userKey, 'join')
+          if (this.debug) util.log('call member.joinEvent');
+          this.changeAttr(memberKey, 'join')
         },
 
-        changeAttr(userKey, field) {
+        changeAttr(memberKey, field) {
 
-          util.log('call changeAttr', userKey, field, store.state.selectedEvent);
+          util.log('call changeAttr', memberKey, field, store.state.selectedEvent);
 
 
           if (store.state.eventKey) {
 
             var eventKey = store.state.eventKey;
             var event = store.state.selectedEvent;
-            var users = event.users || {};
-            var user = users[userKey] || {};
+            var members = event.members || {};
+            var member = members[memberKey] || {};
 
-            util.log(1, JSON.stringify({ e: event, u: user, us: users, s: store.state.events }));
+            util.log(1, JSON.stringify({ e: event, u: member, us: members, s: store.state.events }));
             switch (field) {
               case 'join':
-                user[field] = user[field] == 1 ? 0 : 1;
+                member[field] = member[field] == true ? false : true;
                 break;
               case 'pay':
-                user['join'] = user['join'] || 1;
-                user[field] = user[field] == true ? false : true;
+                member.join = member.join || true;
+                member[field] = member[field] == true ? false : true;
                 break;
             }
-            // update object users[userKey] = user
-            Vue.set(users, userKey, user);
+            // update object members[memberKey] = member
+            Vue.set(members, memberKey, member);
 
-            util.log(2, JSON.stringify({ e: event, u: user, us: users, s: store.state.events }));
-            // update object event[users] = users
-            Vue.set(event, 'users', users)
-            util.log(3, JSON.stringify({ e: event, u: user, us: users, s: store.state.events }));
+            util.log(2, JSON.stringify({ e: event, u: member, us: members, s: store.state.events }));
+            // update object event[members] = members
+            Vue.set(event, 'members', members)
+            util.log(3, JSON.stringify({ e: event, u: member, us: members, s: store.state.events }));
             // update object
             store.state.events = Object.assign({}, store.state.events);
 
             // google firebase mode
-            google.updateEventUserData(eventKey, userKey, user)
-            //google.updateData('events/'+eventKey+'/users', users)
+            google.updateEventUserData(eventKey, memberKey, member)
+            //google.updateData('events/'+eventKey+'/members', members)
                 .then(()=>{
-                    resolve('this user has been updated.')
+                    console.log('ok')
+                    return 'this member has been updated.'
                 })
                 .catch((e)=>{
+                    console.log('not ok')
                     util.log('error on google.updateData', e)
-                    reject(e)
+                    return e
                 })
           }
         },
 
-        add(user) {
+        add(member) {
 
-          if (store.debug) util.log('call user.add', user);
+          if (store.debug) util.log('call member.add', member);
 
           return new Promise((resolve, reject) => {
             if (
-              user.name === undefined ||
-              user.name.toString().trim().length === 0) {
+              member.name === undefined ||
+              member.name.toString().trim().length === 0) {
               reject('blank name is not valid.')
               return;
             }
             // old mode
             //var key = util.guid()
-            //store.state.users[key] = user;
+            //store.state.members[key] = member;
             //addStorage();
-            //resolve('this user has been added.')
+            //resolve('this member has been added.')
 
             // google firebase mode
-            google.addData('users', user).then((e)=>{
-                store.state.users[e] = user;
-                resolve('this user has been added.')
+            google.addData('members', member).then((e)=>{
+                store.state.members[e] = member;
+                resolve('this member has been added.')
             }).catch((e) =>{
                 util.log('error on google.addData', e)
                 reject(e);
@@ -274,30 +313,31 @@
           })
         },
 
-        update(userKey, user) {
+        update(memberKey, member) {
 
-          if (store.debug) util.log('call user.update', userKey, user);
+          if (store.debug) util.log('call member.update', memberKey, member);
 
-          var hasKey = store.state.users.hasOwnProperty(userKey)
+          var hasKey = store.state.members.hasOwnProperty(memberKey)
 
           return new Promise((resolve, reject) => {
             if (!hasKey) {
-              reject('user not found')
+              reject('member not found')
               return;
             }
-            if (user.name === undefined ||
-              user.name.toString().trim().length === 0) {
+            if (member.name === undefined ||
+              member.name.toString().trim().length === 0) {
               reject('blank name is not valid.')
               return;
             }
             // old mode
-            Vue.set(store.state.users, userKey, user)
-            //resolve('this user has been updated.')
+            Vue.set(store.state.members, memberKey, member)
+            //resolve('this member has been updated.')
+
 
             // google firebase mode
-            google.updateData('users', userKey, user)
+            google.updateData('members', memberKey, member)
                 .then(()=>{
-                    resolve('this user has been updated.')
+                    resolve('this member has been updated.')
                 })
                 .catch((e)=>{
                     util.log('error on google.updateData', e)
@@ -346,6 +386,10 @@
           util.log('call google.isLogged', firebase.auth().currentUser ? true : false)
           return firebase.auth().currentUser ? true : false
 
+        },
+
+        uid() {
+            return firebase.auth().currentUser.uid;
         },
 
         create(account) {
@@ -419,20 +463,23 @@
 
                     var data = snap.val();
                     store.state.googleData = data;
-                    store.state.users = data.users;
+                    store.state.members = data.members;
                     store.state.events = data.events;
 
                 })
         },
 
         addData(local, data) {
+
+
             // get google key
-            var key = firebase.database().ref().child('local').push().key;
+            var key = firebase.database().ref().child(local).push().key;
 
             util.log('call google.add', local, data)
+
             // update google data
             return firebase.database()
-                .ref(local+'/'+key).update(data)
+                .ref(`${local}/${key}`).update(data)
                 .then(()=>{
                     return key;
                 })
@@ -446,17 +493,21 @@
 
         updateData(local, key, data) {
             util.log('call google.add', local, data)
+
+            //var uid = firebase.auth().currentUser.uid;
             // update google data
             return firebase.database()
-                .ref(local+'/'+key)
+                .ref(`${local}/${key}`)
                 .update(data);
         },
 
-        updateEventUserData(keyEvent, keyUser, data) {
-            util.log('call google.add', keyEvent, keyUser, data)
+        updateEventUserData(eventKey, memberKey, data) {
+            util.log('call google.add', eventKey, memberKey, data)
+
             // update google data
+            var uid = firebase.auth().currentUser.uid;
             return firebase.database()
-                .ref('events/'+keyEvent+'/users/'+keyUser)
+                .ref(`events/${eventKey}/members/${memberKey}`)
                 .update(data);
         }
 
@@ -660,10 +711,10 @@
         <h2>Selected Event {{eventName}}</h2>
         <div v-if="selectedEvent">
             <my-confirm v-if="showConfirm" :component="component" :msg="msgConfirm"></my-confirm>
-            <div v-for="(user, key) in users" :key="key">
-                <span>{{user.name}}</span>
-                  <button :disabled="showConfirm" v-if="isActive(key) == false" @click.prevent="join(key, user.name, $event)">Join</button>
-                  <button :disabled="showConfirm" @click.prevent="pay(key, user.name, $event)">
+            <div v-for="(member, key) in members" :key="key">
+                <span>{{member.name}}</span>
+                  <button :disabled="showConfirm" v-if="isActive(key) == false" @click.prevent="join(key, member.name, $event)">Join</button>
+                  <button :disabled="showConfirm" @click.prevent="pay(key, member.name, $event)">
                       <span v-if="isPaid(key) == false">Pay</span>
                       <span v-else>Mark as unpaid</span>
                   </button>
@@ -679,7 +730,7 @@
         return {
           sharedEvents: store.state,
           component: 'selectedEvent',
-          selectedName: null,
+          selectedKey: null,
           showConfirm: false,
           selectedAction: null,
           msgConfirm: ''
@@ -693,34 +744,34 @@
         eventName() {
           return this.sharedEvents.selectedEvent.name
         },
-        users() {
-          return this.sharedEvents.users
+        members() {
+          return this.sharedEvents.members
         },
         selectedEvent() {
           return this.sharedEvents.selectedEvent
         },
       },
       methods: {
-        isActive(userKey) {
-          util.log('call isAtive', userKey);
+        isActive(memberKey) {
+          util.log('call isAtive', memberKey);
 
-          var users = this.selectedEvent.users;
+          var members = this.selectedEvent.members;
 
-          if (users &&
-            users[userKey] &&
-            users[userKey]['join'] &&
-            users[userKey]['join'] === 1) return true;
+          if (members &&
+            members[memberKey] &&
+            members[memberKey]['join'] &&
+            members[memberKey]['join'] === true) return true;
 
           return false;
         },
-        isPaid(userKey) {
-          util.log('call isPaid', userKey)
-          var users = this.selectedEvent.users;
+        isPaid(memberKey) {
+          util.log('call isPaid', memberKey)
+          var members = this.selectedEvent.members;
 
-          if (users &&
-            users[userKey] &&
-            users[userKey]['pay'] &&
-            users[userKey]['pay'] === true) return true;
+          if (members &&
+            members[memberKey] &&
+            members[memberKey]['pay'] &&
+            members[memberKey]['pay'] === true) return true;
 
           return false;
         },
@@ -728,29 +779,39 @@
           util.log('call selectEvent', eventKey);
           store.selectEvent(eventKey)
         },
-        callConfirmAction(actionName, key, userName, actionText) {
-          this.msgConfirm = "Confirm " + actionText + " user " + userName + "?";
+        callConfirmAction(actionName, key, memberName, actionText) {
+          this.msgConfirm = "Confirm " + actionText + " member " + memberName + "?";
           this.selectedAction = actionName;
-          this.selectedName = key;
+          this.selectedKey = key;
           this.showConfirm = true;
+          console.log('TODO: DEL',
+            this.msgConfirm,
+            this.selectedAction,
+            this.selectedKey,
+            this.showConfirm,
+          )
         },
-        join(key, userName, e) {
-          util.log('call join', name);
-          //store.user.joinEvent(userName)
-          this.callConfirmAction('join', key, userName, e.target.innerText);
+        join(key, memberName, e) {
+          util.log('call join', key, memberName);
+          this.callConfirmAction('join', key, memberName, e.target.innerText);
         },
-        pay(key, userName, e) {
-          util.log('call pay', userName);
-          store.user.payEvent(userName);
-          this.callConfirmAction('pay', key, userName, e.target.innerText);
+        pay(key, memberName, e) {
+          util.log('call pay', key, memberName);
+          this.callConfirmAction('pay', key, memberName, e.target.innerText);
         },
         confirmAction() {
+          console.log('TODO: DEL',
+            this.msgConfirm,
+            this.selectedAction,
+            this.selectedKey,
+            this.showConfirm,
+          )
           switch (this.selectedAction) {
             case 'pay':
-              store.user.payEvent(this.selectedName);
+              store.member.payEvent(this.selectedKey);
               break;
             case 'join':
-              store.user.joinEvent(this.selectedName);
+              store.member.joinEvent(this.selectedKey);
               break;
           }
           this.showConfirm = false;
@@ -768,52 +829,52 @@
   </script>
 
 
-  <script type="text/x-template" id="my-user-list">
+  <script type="text/x-template" id="my-member-list">
         <div>
       <h2>User List</h2>
       <ul>
-        <li v-for="(user, key) in users">
-          <span>{{ user.name }}</span><button @click.prevent="edit(key, user)">Edit</button>
+        <li v-for="(member, key) in members">
+          <span>{{ member.name }}</span><button @click.prevent="edit(key, member)">Edit</button>
         </li>
       </ul>
     </div>
   </script>
   <script>
-    var MyUserList = Vue.component('my-user-list', {
+    var MyUserList = Vue.component('my-member-list', {
       data() {
         return {
           sharedEvents: store.state
         }
       },
       computed: {
-        users() {
-          return this.sharedEvents.users;
+        members() {
+          return this.sharedEvents.members;
         }
       },
       methods: {
-        edit(key, user) {
-          var userEdit = {
+        edit(key, member) {
+          var memberEdit = {
             key: key,
-            data: user
+            data: member
           }
-          EventBus.$emit('showUserEdit', userEdit)
+          EventBus.$emit('showUserEdit', memberEdit)
         },
       },
-      template: '#my-user-list'
+      template: '#my-member-list'
     })
   </script>
 
 
-  <script type="text/x-template" id="my-user-data">
+  <script type="text/x-template" id="my-member-data">
         <div v-if="editData">
       <h2>{{mode}} User</h2>
       <div>
         <label>Name</label>
-        <input type="text" v-model="user.name"  @keyup.enter="save" />
+        <input type="text" v-model="member.name"  @keyup.enter="save" />
       </div>
       <div>
           <label>Email</label>
-          <input type="email" v-model="user.email" @keyup.enter="save" />
+          <input type="email" v-model="member.email" @keyup.enter="save" />
       </div>
       <div>
         <button @click.prevent="save">Save</button>
@@ -823,11 +884,11 @@
     </div>
   </script>
   <script>
-    var MyUserData = Vue.component('my-user-data', {
+    var MyUserData = Vue.component('my-member-data', {
       data() {
         return {
-          user: {},
-          userKey: '',
+          member: {},
+          memberKey: '',
           mode: '',
           msg: '',
           editData: false
@@ -838,16 +899,16 @@
           this.editData = false
         })
 
-        EventBus.$on('showUserEdit', user => {
-          this.user = Object.assign({}, user.data)
-          this.userName = user.key;
+        EventBus.$on('showUserEdit', member => {
+          this.member = Object.assign({}, member.data)
+          this.memberName = member.key;
           this.mode = 'Edit'
           this.msg = ''
           this.editData = true
         });
 
-        EventBus.$on('showUserNew', (user) => {
-          this.user = {}
+        EventBus.$on('showUserNew', (member) => {
+          this.member = {}
           this.mode = 'New'
           this.msg = ''
           this.editData = true
@@ -859,9 +920,9 @@
           var data = {};
 
           if (this.mode === 'Edit') {
-            data = store.user.update(this.userName, this.user)
+            data = store.member.update(this.memberName, this.member)
           } else {
-            data = store.user.add(this.user)
+            data = store.member.add(this.member)
           }
           data.then((e) => {
             this.goToUserList()
@@ -880,7 +941,7 @@
           EventBus.$emit('showUserList');
         }
       },
-      template: '#my-user-data'
+      template: '#my-member-data'
     })
   </script>
 
@@ -969,8 +1030,8 @@
             <my-event-list v-if="showEventList" />
             <my-event-data />
             <my-selected-event v-if="showEventUsers"/>
-            <my-user-list v-if=showUserList />
-            <my-user-data />
+            <my-member-list v-if=showUserList />
+            <my-member-data />
           </div>
 
           <div>
