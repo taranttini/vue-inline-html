@@ -7,8 +7,11 @@
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Vue Inline Html</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.21/vue.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vuefire/1.4.5/vuefire.min.js"></script>
 
-  <script src="https://www.gstatic.com/firebasejs/5.7.2/firebase.js"></script>
+  <!-- <script src="https://www.gstatic.com/firebasejs/5.7.2/firebase.js"></script> -->
+  <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
+<script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script>
 
 </head>
 
@@ -22,6 +25,7 @@
 
   <script>
 
+    const db = firebase.firestore()
 
   var members = {
     "KEY": {
@@ -120,9 +124,13 @@
         eventKey: null,
         selectedEvent: null,
         members: {},
-        googleData: {}
+        googleData: {},
+        
+        
+        currentTodo: null,
       },
 
+ 
       setProcessing(value) {
         util.log('call setProcessing', value);
         store.state.isProcessing = value;
@@ -1057,9 +1065,10 @@
           showEventUsers: false,
 
           showUserList: false,
-          showUserData: false
+          showUserData: false,
         }
       },
+    
       created() {
         getStorage();
 
@@ -1090,6 +1099,7 @@
         }
       },
       methods: {
+
         checkLogin() {
 
           this.connected = google.isLogged();
@@ -1154,7 +1164,17 @@
 
     new Vue({
       el: '#app',
+      data: {
+        // Usually an array for collection
+        todos: [],
+        // and null for documents
+        currentTodo: null,
+      },
       render: h => h(MyEvent),
+      firestore: {
+        todos: db.collection('todos'),
+        currentTodo: db.collection('todos').doc('1'),
+      },
       components: {
         MyEvent
       },
@@ -1164,6 +1184,150 @@
 
   </script>
 
+
+<div id="app2">
+  
+  <input v-model.trim="newTodoText" @keyup.enter="addTodo" placeholder="Add new todo" />
+  <ul>
+    <li v-for="todo in todos">
+      <input :value="todo.text" />
+      <button @click="removeTodo(todo)">X</button>
+    </li>
+  </ul>
+  {{msg}}
+  {{todos}}
+  
+</div>
+
+<script>
+  
+  
+  
+  var store2 = {
+    state: {
+      db: firebase.firestore(),
+      msg: []
+    },
+    actions: {
+      seed () {
+        var todosRef = store2.state.db.collection('todos')
+
+        todosRef.doc('mr_a').set({
+          firstName: 'Andy',
+          lastName: 'Andyson'
+        })
+
+        todosRef.doc('mr_b').set({
+          firstName: 'Ben',
+          lastName: 'Benson'
+        })
+
+        todosRef.doc('mr_c').set({
+          firstName: 'Cee',
+          lastName: 'Ceeson'
+        })
+      },
+
+      seedMsg () {
+        let msgRef = store2.state.db.collection('messages')
+
+        msgRef.add({
+          created: Date.now(),
+          users: ['mr_a', 'mr_b'],
+          messages: [
+            { id: "1", text: 'Hi there', sender: 'mr_a', created: Date.now() },
+            { id: "2", text: 'Hi to you too!', sender: 'mr_b', created: Date.now() }
+          ]
+        })
+
+        msgRef.add({
+          created: Date.now(),
+          users: ['mr_a', 'mr_c'],
+          messages: []
+        })
+      },
+
+      addMsg(msg) {
+        let msgRef = store2.state.db.collection('messages')
+
+        msgRef.add({
+          created: Date.now(),
+          users: ['mr_a'],
+          messages: [
+            { id: (new Date()).toString(), text: msg, sender: 'mr_a', created: Date.now() },
+          ]
+        })
+
+      },
+      async get () {
+        let msgRef = store2.state.db.collection('messages')
+        let msgs = await msgRef.get()
+
+        msgs.forEach((conversation) => {
+          store2.state.msg.push(conversation.data())})
+      }
+    }
+
+
+
+  }
+  const todos = db.collection('todos')
+
+  Vue.use(VueFire)
+
+  new Vue({
+    el: '#app2',
+    data: {
+      shared: store2,
+      todos: [],
+      tweets: [],
+      moments: [],
+      config: null,
+      newTodoText: '',
+    },
+    store2,
+    computed: {
+      msg() {
+        return this.shared.state.msg
+      }
+    },
+    created() {
+
+      //this.shared.actions.seed()
+      //this.shared.actions.seedMsg()
+
+      this.shared.actions.get()
+      todos.get().then((querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+          console.log(`${doc.id} => ${doc.data()}`);
+        });
+      });
+       //console.log('A', this.$store.state.db)
+       console.log('B', this.shared.state.db)
+    },
+    methods: {
+      addTodo: function() {
+        if (this.newTodoText) {
+
+          this.shared.actions.addMsg(this.newTodoText);
+
+          var x = this.todos
+          var data = {finished: false,text: this.newTodoText, createAt: new Date()}
+          
+          // db2.collection('todos').add(data)
+          // //todos2.add(data)
+          //   .then(function(docRef) { console.log("Document written with ID: ", docRef.id, docRef.data()); })
+          //   .catch(function(error) { console.error("Error adding document: ", error); });
+          this.newTodoText = ''
+        }
+      },
+      removeTodo: function(todo) {
+        todos2.doc(todo.id).delete()
+      },
+      
+    },
+  })
+</script>
 
 
 </body>
