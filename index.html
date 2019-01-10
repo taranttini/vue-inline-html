@@ -121,15 +121,12 @@
       debug: true,
       state: {
         isProcessing: false,
-        events: {},
         isLogged: false,
         eventKey: null,
         selectedEvent: null,
-        members: {},
         googleData: {},
-
-
-        currentTodo: null,
+        events: {},
+        members: {},
       },
 
 
@@ -519,15 +516,10 @@
 
   </script>
 
-  <script type="text/x-template" id="my-confirm">
-    <div>
-        <h2>{{msg}}</h2>
-        <button @click.prevent="confirm">Confirm</button>
-        <button @click.prevent="cancel">Cancel</button>
-      </div>
-  </script>
   <script>
-    var MyConfirm = Vue.component('my-confirm', {
+
+    Vue.component('my-confirm', {
+
       props: {
         component: String,
         msg: {
@@ -535,65 +527,30 @@
           required: true
         }
       },
+      
       methods: {
         confirm() { EventBus.$emit(this.component + 'Confirm'); },
         cancel() { EventBus.$emit(this.component + 'Cancel'); }
       },
-      template: '#my-confirm'
+
+      template: `
+        <div>
+          <h2>{{msg}}</h2>
+          <button @click.prevent="confirm">Confirm</button>
+          <button @click.prevent="cancel">Cancel</button>
+        </div>
+      `
     })
-  </script>
 
 
-  <script type="text/x-template" id="my-event-data">
-    <div v-if="editData">  
-      <div v-if="isProcessing">processing...</div>
-      <div v-if="showNew"> 
-          <div>
-              <h2>{{ mode }} Event</h2>
-          </div>
-          <div>
-            <input type="text" v-model="event.name" placeholder="Event Name" @keyup.enter="addEvent" />
-          </div>
-          <div>
-              <textarea v-model="event.description" placeholder="Event Description" @keyup.enter="addEvent">
-              </textarea>
-          </div>
-          <div>
-            <select v-model="event.payment">
-              <option disabled value="">Payment Mode</option>
-              <option>Fixed</option>
-              <option>Varied</option>
-              <option>Divided</option>
-            </select>
-          </div>
-          <div v-if="needsPayment">
-            <input v-model="event.price" :placeholder="paymentDescription" @keyup.enter="addEvent" />
-          </div>
-          <div>
-            <button @click.prevent="addEvent">Add</button>
-            <button @click.prevent="cancelEvent">Cancel</button>
-          </div>
-      </div>
-      <my-confirm :component='component' :msg="msgConfirm" v-else></my-confirm>
-      <p>{{ errorMsg }}</p>
-    </div>
-  </script>
-
-  <script>
-
-    var MyEventData = Vue.component('my-event-data', {
+    Vue.component('my-event-data', {
 
       data() {
         return {
           component: 'newEvent',
-          event: {
-            name: '',
-            description: '',
-            price: null,
-            payment: ''
-          },
-          mode: 'Edit',
-          showNew: true,
+          event: {},
+          mode: '',
+          showNew: false,
           editData: false,
           errorMsg: '',
           sharedEvents: store.state
@@ -601,11 +558,14 @@
       },
 
       created() {
+
         EventBus.$on(this.component + 'Confirm', () => { this.confirmEvent() });
+
         EventBus.$on(this.component + 'Cancel', () => { this.cancelConfirm() });
 
         EventBus.$on('showEventEdit', () => {
           this.event = Object.assign({}, this.sharedEvents.selectedEvent)
+          this.event.payment = this.event.payment ? this.event.payment : '0';
           this.mode = 'Edit'
           this.errorMsg = ''
           this.showNew = true
@@ -613,7 +573,12 @@
         })
 
         EventBus.$on('showEventNew', () => {
-          this.event = {}
+          this.event = {
+            name: '',
+            description: '',
+            payment: '0',
+            price: null,
+          }
           this.mode = 'New'
           this.errorMsg = ''
           this.showNew = true
@@ -623,20 +588,21 @@
         EventBus.$on('hideEventData', () => {
           this.editData = false
         })
+
       },
 
       computed: {
 
         needsPayment() {
-          return this.event.payment === 'Fixed' || this.event.payment === 'Divided'
+          return this.event.payment === 'fixed' || this.event.payment === 'divided'
         },
 
         paymentDescription() {
           switch (this.event.payment) {
-            case 'Fixed':
+            case 'fixed':
               return 'Inform event price fixed'
 
-            case 'Divided':
+            case 'divided':
               return 'Inform event price total'
             default:
               return ''
@@ -648,17 +614,19 @@
         },
 
         msgConfirm() {
-          return `Confirm ${this.mode} event "${this.event.name || ''}"?`
+          return `Confirm ${this.mode.toLowerCase()} event "${this.event.name || ''}"?`
         }
 
       },
 
       methods: {
+
         addEvent() {
           util.log('call addEvent');
           this.errorMsg = ''
           this.showNew = false;
         },
+
         confirmEvent() {
           util.log('call confirmEvent');
 
@@ -682,61 +650,85 @@
               this.showNew = true
             })
         },
+
         clean() {
           this.event = {}
           this.errorMsg = ''
           this.showNew = false
         },
+
         gotoEventList() {
           util.log('call gotoEventList');
           this.clean();
           EventBus.$emit('showEventList');
         },
+
         cancelConfirm() {
           util.log('call cancelConfirm');
           this.showNew = true;
         },
+
         cancelEvent() {
           util.log('call cancelEvent');
           EventBus.$emit('showEventList')
           this.editData = false
-        }
+        },
+
       },
 
-      /*components: {
-        MyConfirm
-      },*/
-
-      template: '#my-event-data'
-
-
+      template: `
+        <div v-if="editData">  
+          <div v-if="isProcessing">processing...</div>
+          <div v-if="showNew"> 
+              <div>
+                  <h2>{{ mode }} Event</h2>
+              </div>
+              <div>
+                <input type="text" v-model="event.name" placeholder="Event Name" @keyup.enter="addEvent" />
+              </div>
+              <div>
+                  <textarea v-model="event.description" placeholder="Event Description" @keyup.enter="addEvent">
+                  </textarea>
+              </div>
+              <div>
+                <select v-model="event.payment">
+                  <option disabled value="0">Payment Mode</option>
+                  <option value='fixed'>Fixed</option>
+                  <option value='varied'>Varied</option>
+                  <option value='divided'>Divided</option>
+                </select>
+              </div>
+              <div v-if="needsPayment">
+                <input v-model="event.price" :placeholder="paymentDescription" @keyup.enter="addEvent" />
+              </div>
+              <div>
+                <button @click.prevent="addEvent">Save</button>
+                <button @click.prevent="cancelEvent">Cancel</button>
+              </div>
+          </div>
+          <my-confirm :component='component' :msg="msgConfirm" v-else></my-confirm>
+          <p>{{ errorMsg }}</p>
+        </div>
+      `
 
     })
-  </script>
 
-  <script type="text/x-template" id="my-event-list">
-        <div>
-        <h2>List Events</h2>
-        <ul>
-          <li v-for="(event, key) in events" :key="key">
-            <a href="#" @click.prevent="selectEvent(key)">{{isActive(key)}}{{event.name}}</a>
-            <button @click.prevent="editEvent(key)">Edit</button>
-          </li>
-        </ul>
-      </div>
-  </script>
-  <script>
-    var MyEventList = Vue.component('my-event-list', {
+
+    Vue.component('my-event-list', {
+      
       data() {
         return {
           sharedEvents: store.state
         }
       },
+
       computed: {
+
         events() {
           return this.sharedEvents.events
         }
       },
+
       methods: {
 
         selectEvent(eventKey) {
@@ -744,39 +736,34 @@
           store.event.select(eventKey)
           EventBus.$emit('showEventUsers')
         },
+
         editEvent(eventKey) {
           util.log('call editEvent', eventKey);
           store.event.select(eventKey)
           EventBus.$emit('showEventEdit')
         },
+
         isActive(eventKey) {
           return this.sharedEvents.eventKey == eventKey ? '> ' : '';
-        }
+        },
+
       },
-      template: '#my-event-list'
-    });
-  </script>
 
-  <script type="text/x-template" id="my-selected-event">
+      template: `
         <div>
-        <h2>Selected Event {{eventName}}</h2>
-        <div v-if="selectedEvent">
-            <my-confirm v-if="showConfirm" :component="component" :msg="msgConfirm"></my-confirm>
-            <div v-for="(member, key) in members" :key="key">
-                <span>{{member.name}}</span>
-                  <button :disabled="showConfirm" v-if="isActive(key) == false" @click.prevent="join(key, member.name, $event)">Join</button>
-                  <button :disabled="showConfirm" @click.prevent="pay(key, member.name, $event)">
-                      <span v-if="isPaid(key) == false">Pay</span>
-                      <span v-else>Mark as unpaid</span>
-                  </button>
-                </div>
-
-            </div>
+          <h2>List Events</h2>
+          <ul>
+            <li v-for="(event, key) in events" :key="key">
+              <a href="#" @click.prevent="selectEvent(key)">{{isActive(key)}}{{event.name}}</a>
+              <button @click.prevent="editEvent(key)">Edit</button>
+            </li>
+          </ul>
         </div>
-    </div>
-  </script>
-  <script>
-    var MySelectedEvent = Vue.component('my-selected-event', {
+      `
+    });
+
+
+    Vue.component('my-selected-event', {
 
       data() {
         return {
@@ -785,7 +772,8 @@
           selectedKey: null,
           showConfirm: false,
           selectedAction: null,
-          msgConfirm: ''
+          msgConfirm: '',
+          price: null
         }
       },
 
@@ -795,15 +783,52 @@
       },
 
       computed: {
-        eventName() {
-          return this.sharedEvents.selectedEvent.name
-        },
+
         members() {
           return this.sharedEvents.members
         },
-        selectedEvent() {
-          return this.sharedEvents.selectedEvent
+
+        event() {
+
+          var event = this.sharedEvents.selectedEvent; 
+
+          switch(event.payment)
+          {
+            case 'fixed':
+              this.price = event.price;
+              break;
+            case 'divided':
+              var members = event.members || []
+              members = Object.keys(members)
+              this.price = event.price / (members.length +1)
+          }
+
+          return event
         },
+
+        hasPrice() {
+          return this.event.price ? true : false
+        },
+
+        priceDescription() {
+          
+          var value = 0;
+          if (this.hasPrice)
+          {
+            if (this.event.payment === 'divided') {
+              var members = this.event.members || []
+              members = Object.keys(members)
+              value = this.event.price / (members.length +1)
+            }
+            else if (this.event.payment === 'fixed') {
+              value = this.event.price
+            }
+            
+            return `${value} per user`
+          }
+          return ''
+        },
+
       },
 
       methods: {
@@ -811,7 +836,7 @@
         isActive(memberKey) {
           util.log('call isAtive', memberKey);
 
-          var members = this.selectedEvent.members;
+          var members = this.event.members;
 
           if (members &&
             members[memberKey] &&
@@ -823,7 +848,7 @@
 
         isPaid(memberKey) {
           util.log('call isPaid', memberKey)
-          var members = this.selectedEvent.members;
+          var members = this.event.members;
 
           if (members &&
             members[memberKey] &&
@@ -836,6 +861,7 @@
         selectEvent(eventKey) {
           util.log('call selectEvent', eventKey);
           store.selectEvent(eventKey)
+
         },
 
         callConfirmAction(actionName, key, memberName, actionText) {
@@ -886,38 +912,48 @@
 
       },
 
-      components: {
-        MyConfirm
-      },
-
-      template: '#my-selected-event'
-    })
-  </script>
-
-
-  <script type="text/x-template" id="my-member-list">
+      template: `
         <div>
-      <h2>User List</h2>
-      <ul>
-        <li v-for="(member, key) in members">
-          <span>{{ member.name }}</span><button @click.prevent="edit(key, member)">Edit</button>
-        </li>
-      </ul>
-    </div>
-  </script>
-  <script>
-    var MyUserList = Vue.component('my-member-list', {
+          <h2>Selected Event {{event.name}}</h2>
+          <p>Description: {{event.description}}</p>
+          <p v-if="hasPrice">{{priceDescription}}</p>
+          <div v-if="event">
+              <my-confirm v-if="showConfirm" :component="component" :msg="msgConfirm"></my-confirm>
+              <div v-for="(member, key) in members" :key="key">
+                  <span>{{member.name}}</span>
+                  <button :disabled="showConfirm" v-if="isActive(key) == false" @click.prevent="join(key, member.name, $event)">Join</button>
+                  
+                  <input v-model="price" placeholder="Inform your payment value" />
+                  <button :disabled="showConfirm" @click.prevent="pay(key, member.name, $event)">
+                      <span v-if="isPaid(key) == false">Pay</span>
+                      <span v-else>Mark as unpaid</span>
+                  </button>
+                </div>
+            </div>
+          </div>
+        </div>
+      `
+    })
+
+
+    Vue.component('my-member-list', {
+      
       data() {
         return {
           sharedEvents: store.state
         }
       },
+
       computed: {
+      
         members() {
           return this.sharedEvents.members;
         }
+      
       },
+
       methods: {
+      
         edit(key, member) {
           var memberEdit = {
             key: key,
@@ -925,32 +961,24 @@
           }
           EventBus.$emit('showUserEdit', memberEdit)
         },
+
       },
-      template: '#my-member-list'
+
+      template: `
+        <div>
+          <h2>User List</h2>
+          <ul>
+            <li v-for="(member, key) in members">
+              <span>{{ member.name }}</span><button @click.prevent="edit(key, member)">Edit</button>
+            </li>
+          </ul>
+        </div>
+      `
     })
-  </script>
 
 
-  <script type="text/x-template" id="my-member-data">
-        <div v-if="editData">
-      <h2>{{mode}} User</h2>
-      <div>
-        <label>Name</label>
-        <input type="text" v-model="member.name"  @keyup.enter="save" />
-      </div>
-      <div>
-          <label>Email</label>
-          <input type="email" v-model="member.email" @keyup.enter="save" />
-      </div>
-      <div>
-        <button @click.prevent="save">Save</button>
-        <button @click.prevent="cancel">Cancel</button>
-      </div>
-      <p>{{msg}}</p>
-    </div>
-  </script>
-  <script>
-    var MyUserData = Vue.component('my-member-data', {
+    Vue.component('my-member-data', {
+
       data() {
         return {
           member: {},
@@ -960,7 +988,9 @@
           editData: false
         }
       },
+
       mounted() {
+
         EventBus.$on('hideUserData', () => {
           this.editData = false
         })
@@ -978,9 +1008,12 @@
           this.mode = 'New'
           this.msg = ''
           this.editData = true
-        })
+        });
+
       },
+
       methods: {
+
         save() {
           util.log('call save')
           var data = {};
@@ -997,40 +1030,43 @@
             this.msg = e
           })
         },
+
         cancel() {
           util.log('call cancel')
           this.goToUserList();
         },
+
         goToUserList() {
           util.log('call goToUserList')
           this.editData = false;
           EventBus.$emit('showUserList');
-        }
+        },
+
       },
-      template: '#my-member-data'
+
+      template: `
+        <div v-if="editData">
+          <h2>{{mode}} User</h2>
+          <div>
+            <label>Name</label>
+            <input type="text" v-model="member.name"  @keyup.enter="save" />
+          </div>
+          <div>
+              <label>Email</label>
+              <input type="email" v-model="member.email" @keyup.enter="save" />
+          </div>
+          <div>
+            <button @click.prevent="save">Save</button>
+            <button @click.prevent="cancel">Cancel</button>
+          </div>
+          <p>{{msg}}</p>
+        </div>
+      `
     })
-  </script>
 
 
-  <script type="text/x-template" id="my-login">
-    <div>
-      <pre>
-        email: demo@demo.com
-        password: demo
-      </pre>
-      <div>
-        <div><input type="email" v-model="login.email" placeholder="Email" @keyup.enter="connect" /></div>
-        <div><input type="password" v-model="login.password" placeholder="Password" @keyup.enter="connect" /></div>
-      </div>
-      <div>
-        <button @click.prevent="connect">Login</button>
-        <button @click.prevent="create">Create</button>
-      </div>
-      <p>{{msg}}</p>
-    </div>
-  </script>
-  <script>
-    var MyLogin = Vue.component('my-login', {
+    Vue.component('my-login', {
+
       data() {
         return {
           login: {},
@@ -1068,51 +1104,26 @@
             })
         },
 
-
-
       },
-      template: '#my-login'
-    })
-  </script>
 
-
-
-  <script type="text/x-template" id="my-event">
-    <div>
-        <my-login v-if="!connected"></my-login>
-        <div v-else>
-          <button @click.prevent="logoff">Logoff</button>
-          <h3>Menu</h3>
-          <ul>
-            <li>Event</li>
-            <li><button @click.prevent="selectEventList">Event List</button></li>
-            <li><button @click.prevent="selectEventNew">New Event</button></li>
-            <li>User</li>
-            <li><button @click.prevent="selectUserList">User List</button></li>
-            <li><button @click.prevent="selectUserNew">New User</button></li>
-          </ul>
-          <h3>Screen</h3>
+      template: `
+        <div>
           <div>
-            <my-event-list v-if="showEventList" />
-            <my-event-data />
-            <my-selected-event v-if="showEventUsers"/>
-            <my-member-list v-if=showUserList />
-            <my-member-data />
+            <div><input type="email" v-model="login.email" placeholder="Email" @keyup.enter="connect" /></div>
+            <div><input type="password" v-model="login.password" placeholder="Password" @keyup.enter="connect" /></div>
           </div>
-
           <div>
-              <h3>Code</h3>
-              {{load}}
-              <pre>{{sharedEvents}}</pre>
+            <button @click.prevent="connect">Login</button>
+            <button @click.prevent="create">Create</button>
           </div>
-      </div>
-    </div>
-  </script>
+          <p>{{msg}}</p>
+        </div>
+      `
+    });
 
-  <script>
-    var EventBus = new Vue();
 
-    var MyEvent = Vue.component('my-event', {
+    Vue.component('my-event', {
+
       data() {
         return {
           connected: false,
@@ -1128,6 +1139,7 @@
       },
 
       created() {
+
         getStorage();
 
         EventBus.$on('login', () => {
@@ -1146,16 +1158,21 @@
         EventBus.$on('showUserEdit', () => {
           this.hideComponents()
         })
+
         setTimeout(this.checkLogin(), 1000)
 
         google.loadDB();
 
       },
+
       computed: {
+
         load() {
           return this.sharedEvents.isProcessing
-        }
+        },
+
       },
+
       methods: {
 
         checkLogin() {
@@ -1169,6 +1186,7 @@
           }
 
         },
+
         logoff() {
           this.connected = false
           google.logoff()
@@ -1188,14 +1206,17 @@
           this.hideComponents()
           this.showEventList = true
         },
+
         selectUserList() {
           this.hideComponents()
           this.showUserList = true
         },
+
         selectUserNew() {
           this.hideComponents()
           EventBus.$emit('showUserNew')
         },
+
         hideComponents() {
           this.showEventList = false
           this.showEventNew = false
@@ -1205,27 +1226,46 @@
           EventBus.$emit('hideEventData')
           //this.showUserData = false
         }
-      },
-      components: {
-        MyEventList,
-        MyEventData,
-        MySelectedEvent,
-
-        MyUserList,
-        MyUserData,
 
       },
-      template: '#my-event',
+
+      template: `
+        <div>
+          <my-login v-if="!connected"></my-login>
+          <div v-else>
+            <button @click.prevent="logoff">Logoff</button>
+            <h3>Menu</h3>
+            <ul>
+              <li>Event</li>
+              <li><button @click.prevent="selectEventList">Event List</button></li>
+              <li><button @click.prevent="selectEventNew">New Event</button></li>
+              <li>User</li>
+              <li><button @click.prevent="selectUserList">User List</button></li>
+              <li><button @click.prevent="selectUserNew">New User</button></li>
+            </ul>
+            <h3>Screen</h3>
+            <div>
+              <my-event-list v-if="showEventList" />
+              <my-event-data />
+              <my-selected-event v-if="showEventUsers"/>
+              <my-member-list v-if=showUserList />
+              <my-member-data />
+            </div>
+
+            <div>
+              <h3>Code</h3>
+              {{load}}
+              <pre>{{sharedEvents}}</pre>
+            </div>
+          </div>
+        </div>
+      `,
     })
+
+    var EventBus = new Vue();
 
     new Vue({
       el: '#app',
-      //render: h => h(MyEvent),
-      components: {
-        MyEvent,
-        MyConfirm,
-        MyEventData
-      },
     });
 
   </script>
