@@ -11,12 +11,14 @@
 
   <!-- <script src="https://www.gstatic.com/firebasejs/5.7.2/firebase.js"></script> -->
   <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
-<script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script>
 
 </head>
 
 <body>
-  <div id="app"></div>
+  <div id="app">
+    <my-event></my-event>
+  </div>
 
   <!-- https://www.gstatic.com/firebasejs/ui/3.5.1/firebase-ui-auth__pt.js -->
 
@@ -27,40 +29,40 @@
 
     const db = firebase.firestore()
 
-  var members = {
-    "KEY": {
-      members: {
-        "key_m1": {
-          name: "aaa", email: "aaa@aaa.com",
-          events: {
-            "key_e1": true,
-            "key_e2": true,
+    var members = {
+      "KEY": {
+        members: {
+          "key_m1": {
+            name: "aaa", email: "aaa@aaa.com",
+            events: {
+              "key_e1": true,
+              "key_e2": true,
+            }
+          },
+          "key_m2": {
+            name: "bbb", email: "bbb@bbb.com",
+            events: {
+              "key_e1": true,
+            }
           }
         },
-        "key_m2": {
-          name: "bbb", email: "bbb@bbb.com",
-          events: {
-            "key_e1": true,
-          }
-        }
-      },
-      events: {
-        "key_e1": {
-          name: "ccc", description: "ddd",
-          members: {
-            "key_m1": { join: true, pay: true, value: 10 },
-            "key_m2": { join: true, pay: false }
-          }
-        },
-        "key_e2": {
-          name: "ddd", description: "ddd",
-          members: {
-            "key_m1": { join: true, pay: true, value: 5 }
+        events: {
+          "key_e1": {
+            name: "ccc", description: "ddd",
+            members: {
+              "key_m1": { join: true, pay: true, value: 10 },
+              "key_m2": { join: true, pay: false }
+            }
+          },
+          "key_e2": {
+            name: "ddd", description: "ddd",
+            members: {
+              "key_m1": { join: true, pay: true, value: 5 }
+            }
           }
         }
       }
     }
-  }
 
     function addStorage() {
       /*
@@ -125,12 +127,12 @@
         selectedEvent: null,
         members: {},
         googleData: {},
-        
-        
+
+
         currentTodo: null,
       },
 
- 
+
       setProcessing(value) {
         util.log('call setProcessing', value);
         store.state.isProcessing = value;
@@ -145,12 +147,12 @@
 
           return new Promise((resolve, reject) => {
 
-            store.state.isProcessing = false;
-
             if (util.isNull(event) || util.isEmpty(event.name)) {
+              store.state.isProcessing = false;
               reject('Event name is necessary')
             }
             if (util.isLessLength(event.name, 3)) {
+              store.state.isProcessing = false;
               reject('Event name needs have a minimum 3 characters.')
             }
             else {
@@ -163,13 +165,17 @@
               //resolve('Event has been created');
 
               // google firebase mode
-                google.addData('events', event).then((e)=>{
-                    store.state.events[e] = event;
-                    return 'this events has been added.'
-                }).catch((e) =>{
-                    util.log('error on google.addData', e)
-                    return e;
-                })
+              google.addData('events', event).then((e) => {
+
+                store.state.isProcessing = false;
+                store.state.events[e] = event;
+                resolve('this events has been added.')
+              }).catch((e) => {
+
+                store.state.isProcessing = false;
+                util.log('error on google.addData', e)
+                reject(e);
+              })
             }
           })
         },
@@ -178,35 +184,26 @@
 
           util.log('call event.update', event);
 
-          var key = store.state.eventKey
-
           return new Promise((resolve, reject) => {
 
             if (util.isNull(event)) {
               reject('event not found')
-              return
             }
             else if (util.isEmpty(event.name)) {
               reject('blank name is not valid.')
-              return;
             }
             else {
-              // old mode
-              // update state.event[key] = event
-              Vue.set(store.state.events, key, event)
-              //addStorage();
-              //resolve('this event has been updated.')
 
-              // google mode
-              // google firebase mode
-             google.updateData('events', key, event)
-                .then(()=>{
-                    //return 'this event has been updated.'
-                    return 'this event has been updated.'
+              var key = store.state.eventKey
+
+              google.updateData('events', key, event)
+                .then(() => {
+                  Vue.set(store.state.events, key, event)
+                  resolve('this event has been updated.')
                 })
-                .catch((e)=>{
-                    util.log('error on google.updateData', e)
-                    return e
+                .catch((e) => {
+                  util.log('error on google.updateData', e)
+                  reject(e)
                 })
             }
           })
@@ -279,16 +276,16 @@
 
             // google firebase mode
             google.updateEventUserData(eventKey, memberKey, member)
-            //google.updateData('events/'+eventKey+'/members', members)
-                .then(()=>{
-                    console.log('ok')
-                    return 'this member has been updated.'
-                })
-                .catch((e)=>{
-                    console.log('not ok')
-                    util.log('error on google.updateData', e)
-                    return e
-                })
+              //google.updateData('events/'+eventKey+'/members', members)
+              .then(() => {
+                console.log('ok')
+                return 'this member has been updated.'
+              })
+              .catch((e) => {
+                console.log('not ok')
+                util.log('error on google.updateData', e)
+                return e
+              })
           }
         },
 
@@ -310,12 +307,12 @@
             //resolve('this member has been added.')
 
             // google firebase mode
-            google.addData('members', member).then((e)=>{
-                store.state.members[e] = member;
-                resolve('this member has been added.')
-            }).catch((e) =>{
-                util.log('error on google.addData', e)
-                reject(e);
+            google.addData('members', member).then((e) => {
+              store.state.members[e] = member;
+              resolve('this member has been added.')
+            }).catch((e) => {
+              util.log('error on google.addData', e)
+              reject(e);
             })
 
           })
@@ -344,13 +341,13 @@
 
             // google firebase mode
             google.updateData('members', memberKey, member)
-                .then(()=>{
-                    resolve('this member has been updated.')
-                })
-                .catch((e)=>{
-                    util.log('error on google.updateData', e)
-                    reject(e)
-                })
+              .then(() => {
+                resolve('this member has been updated.')
+              })
+              .catch((e) => {
+                util.log('error on google.updateData', e)
+                reject(e)
+              })
 
           })
 
@@ -373,7 +370,7 @@
 
           return new Promise((resolve, reject) => {
             console.log(login)
-            if(login.email === "demo@demo.com" && login.pass === "demo") {
+            if (login.email === "demo@demo.com" && login.pass === "demo") {
               resolve('loggin')
             }
             else {
@@ -390,19 +387,19 @@
 
     var google = {
 
-        isLogged() {
-          util.log('call google.isLogged', firebase.auth().currentUser ? true : false)
-          return firebase.auth().currentUser ? true : false
+      isLogged() {
+        util.log('call google.isLogged', firebase.auth().currentUser ? true : false)
+        return firebase.auth().currentUser ? true : false
 
-        },
+      },
 
-        uid() {
-            return firebase.auth().currentUser.uid;
-        },
+      uid() {
+        return firebase.auth().currentUser.uid;
+      },
 
-        create(account) {
+      create(account) {
 
-          return new Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
 
           firebase.auth().createUserWithEmailAndPassword(account.email, account.password)
             .then((e) => {
@@ -414,7 +411,7 @@
               var errorCode = error.code;
               var errorMessage = error.message;
 
-              if(errorCode == 'auth/weak-password') {
+              if (errorCode == 'auth/weak-password') {
                 reject('A senha é muito fraca.')
               }
               else {
@@ -425,110 +422,109 @@
               // ...
             });
 
+        })
+      },
+
+      login(account) {
+
+        return new Promise((resolve, reject) => {
+
+          firebase.auth().signInWithEmailAndPassword(account.email, account.password)
+            .then((e) => {
+              console.log(e)
+
+              resolve(e)
+            })
+            .catch((error) => {
+              console.log(error)
+              // Handle Errors here.
+              var errorCode = error.code;
+              var errorMessage = error.message;
+
+              if (errorCode === 'auth/wrong-password') {
+                reject('Usuário ou senha errados.');
+              }
+              else {
+                reject(errorMessage);
+              }
+
+              // ...
+            });
+
+        })
+      },
+
+      logoff() {
+        util.log('call google.logoff')
+        firebase.auth().signOut();
+      },
+
+      loadDB() {
+        store.state.isProcessing = true;
+
+        firebase.database().ref('/').once('value')
+          .then(function (snap) {
+
+            store.state.isProcessing = false;
+            console.log(snap.val())
+
+            var data = snap.val();
+            store.state.googleData = data;
+            store.state.members = data.members;
+            store.state.events = data.events;
+
           })
-        },
+      },
 
-        login(account) {
+      addData(local, data) {
 
-          return new Promise((resolve, reject) => {
+        // get google key
+        var key = firebase.database().ref().child(local).push().key;
 
-            firebase.auth().signInWithEmailAndPassword(account.email, account.password)
-              .then((e)=> {
-                console.log(e)
-
-                resolve(e)
-              })
-              .catch((error) => {
-                console.log(error)
-                // Handle Errors here.
-                var errorCode = error.code;
-                var errorMessage = error.message;
-
-                if (errorCode === 'auth/wrong-password') {
-                  reject('Usuário ou senha errados.');
-                }
-                else {
-                  reject(errorMessage);
-                }
-
-                // ...
-              });
-
+        // update google data
+        return firebase.database()
+          .ref(`${local}/${key}`).update(data)
+          .then(() => {
+            return key;
           })
-        },
+          .catch((e) => {
+            return e
+          });
 
-        logoff() {
-          util.log('call google.logoff')
-          firebase.auth().signOut();
-        },
+        // create new google data
+        //return firebase.database().ref(local).set(data);
+      },
 
-        loadDB() {
-            firebase.database().ref('/').once('value')
-                .then(function(snap){
+      updateData(local, key, data) {
+        util.log('call google.add', local, data)
 
-                    store.state.isProcessing = true;
-                    console.log(snap.val())
+        //var uid = firebase.auth().currentUser.uid;
+        // update google data
+        return firebase.database()
+          .ref(`${local}/${key}`)
+          .update(data);
+      },
 
-                    var data = snap.val();
-                    store.state.googleData = data;
-                    store.state.members = data.members;
-                    store.state.events = data.events;
+      updateEventUserData(eventKey, memberKey, data) {
+        util.log('call google.add', eventKey, memberKey, data)
 
-                })
-        },
-
-        addData(local, data) {
-
-
-            // get google key
-            var key = firebase.database().ref().child(local).push().key;
-
-            util.log('call google.add', local, data)
-
-            // update google data
-            return firebase.database()
-                .ref(`${local}/${key}`).update(data)
-                .then(()=>{
-                    return key;
-                })
-                .catch((e)=>{
-                    return e
-                });
-
-            // create new google data
-            //return firebase.database().ref(local).set(data);
-        },
-
-        updateData(local, key, data) {
-            util.log('call google.add', local, data)
-
-            //var uid = firebase.auth().currentUser.uid;
-            // update google data
-            return firebase.database()
-                .ref(`${local}/${key}`)
-                .update(data);
-        },
-
-        updateEventUserData(eventKey, memberKey, data) {
-            util.log('call google.add', eventKey, memberKey, data)
-
-            // update google data
-            var uid = firebase.auth().currentUser.uid;
-            return firebase.database()
-                .ref(`events/${eventKey}/members/${memberKey}`)
-                .update(data);
-        }
+        // update google data
+        var uid = firebase.auth().currentUser.uid;
+        return firebase.database()
+          .ref(`events/${eventKey}/members/${memberKey}`)
+          .update(data);
+      }
 
     }
 
   </script>
 
   <script type="text/x-template" id="my-confirm">
-        <div>
-      <h2>{{msg}}</h2>
-      <button @click.prevent="confirm">Confirm</button>
-      <button @click.prevent="cancel">Cancel</button>
-    </div>
+    <div>
+        <h2>{{msg}}</h2>
+        <button @click.prevent="confirm">Confirm</button>
+        <button @click.prevent="cancel">Cancel</button>
+      </div>
   </script>
   <script>
     var MyConfirm = Vue.component('my-confirm', {
@@ -549,40 +545,61 @@
 
 
   <script type="text/x-template" id="my-event-data">
-        <div v-if="editData">
-        <div v-if="isProcessing">processing...</div>
-        <div v-if="showNew">
+    <div v-if="editData">  
+      <div v-if="isProcessing">processing...</div>
+      <div v-if="showNew"> 
           <div>
-            <h2>{{mode}} Event</h2>
-              <div>
-                <input type="text" v-model="event.name" placeholder="Event Name" @keyup.enter="addEvent" />
-              </div>
-              <div>
-                <textarea v-model="event.description" placeholder="Event Description" @keyup.enter="addEvent" />
-              </div>
-            </div>
+              <h2>{{ mode }} Event</h2>
+          </div>
           <div>
-            <button @click.prevent="addEvent">Save</button>
+            <input type="text" v-model="event.name" placeholder="Event Name" @keyup.enter="addEvent" />
+          </div>
+          <div>
+              <textarea v-model="event.description" placeholder="Event Description" @keyup.enter="addEvent">
+              </textarea>
+          </div>
+          <div>
+            <select v-model="event.payment">
+              <option disabled value="">Payment Mode</option>
+              <option>Fixed</option>
+              <option>Varied</option>
+              <option>Divided</option>
+            </select>
+          </div>
+          <div v-if="needsPayment">
+            <input v-model="event.price" :placeholder="paymentDescription" @keyup.enter="addEvent" />
+          </div>
+          <div>
+            <button @click.prevent="addEvent">Add</button>
             <button @click.prevent="cancelEvent">Cancel</button>
           </div>
-        </div>
-        <my-confirm :component='component' :msg="msgConfirm" v-else></my-confirm>
-        <p>{{errorMsg}}</p>
       </div>
+      <my-confirm :component='component' :msg="msgConfirm" v-else></my-confirm>
+      <p>{{ errorMsg }}</p>
+    </div>
   </script>
+
   <script>
+
     var MyEventData = Vue.component('my-event-data', {
+
       data() {
         return {
           component: 'newEvent',
-          event: {},
-          mode: '',
-          errorMsg: '',
+          event: {
+            name: '',
+            description: '',
+            price: null,
+            payment: ''
+          },
+          mode: 'Edit',
           showNew: true,
           editData: false,
+          errorMsg: '',
           sharedEvents: store.state
         }
       },
+
       created() {
         EventBus.$on(this.component + 'Confirm', () => { this.confirmEvent() });
         EventBus.$on(this.component + 'Cancel', () => { this.cancelConfirm() });
@@ -607,14 +624,35 @@
           this.editData = false
         })
       },
+
       computed: {
+
+        needsPayment() {
+          return this.event.payment === 'Fixed' || this.event.payment === 'Divided'
+        },
+
+        paymentDescription() {
+          switch (this.event.payment) {
+            case 'Fixed':
+              return 'Inform event price fixed'
+
+            case 'Divided':
+              return 'Inform event price total'
+            default:
+              return ''
+          }
+        },
+
         isProcessing() {
           return this.sharedEvents.isProcessing;
         },
+
         msgConfirm() {
           return `Confirm ${this.mode} event "${this.event.name || ''}"?`
         }
+
       },
+
       methods: {
         addEvent() {
           util.log('call addEvent');
@@ -664,10 +702,15 @@
           this.editData = false
         }
       },
-      components: {
+
+      /*components: {
         MyConfirm
-      },
+      },*/
+
       template: '#my-event-data'
+
+
+
     })
   </script>
 
@@ -734,6 +777,7 @@
   </script>
   <script>
     var MySelectedEvent = Vue.component('my-selected-event', {
+
       data() {
         return {
           sharedEvents: store.state,
@@ -744,10 +788,12 @@
           msgConfirm: ''
         }
       },
+
       created() {
         EventBus.$on(this.component + 'Confirm', () => { this.confirmAction() });
         EventBus.$on(this.component + 'Cancel', () => { this.cancelAction() });
       },
+
       computed: {
         eventName() {
           return this.sharedEvents.selectedEvent.name
@@ -759,7 +805,9 @@
           return this.sharedEvents.selectedEvent
         },
       },
+
       methods: {
+
         isActive(memberKey) {
           util.log('call isAtive', memberKey);
 
@@ -772,6 +820,7 @@
 
           return false;
         },
+
         isPaid(memberKey) {
           util.log('call isPaid', memberKey)
           var members = this.selectedEvent.members;
@@ -783,10 +832,12 @@
 
           return false;
         },
+
         selectEvent(eventKey) {
           util.log('call selectEvent', eventKey);
           store.selectEvent(eventKey)
         },
+
         callConfirmAction(actionName, key, memberName, actionText) {
           this.msgConfirm = "Confirm " + actionText + " member " + memberName + "?";
           this.selectedAction = actionName;
@@ -799,14 +850,17 @@
             this.showConfirm,
           )
         },
+
         join(key, memberName, e) {
           util.log('call join', key, memberName);
           this.callConfirmAction('join', key, memberName, e.target.innerText);
         },
+
         pay(key, memberName, e) {
           util.log('call pay', key, memberName);
           this.callConfirmAction('pay', key, memberName, e.target.innerText);
         },
+
         confirmAction() {
           console.log('TODO: DEL',
             this.msgConfirm,
@@ -824,14 +878,18 @@
           }
           this.showConfirm = false;
         },
+
         cancelAction() {
           util.log('call cancel')
           this.showConfirm = false;
-        }
+        },
+
       },
+
       components: {
         MyConfirm
       },
+
       template: '#my-selected-event'
     })
   </script>
@@ -972,7 +1030,7 @@
     </div>
   </script>
   <script>
-    var MyLogin = Vue.component('my-login',{
+    var MyLogin = Vue.component('my-login', {
       data() {
         return {
           login: {},
@@ -986,7 +1044,7 @@
           store.login.create(this.login)
 
 
-          .then((e)=> {
+            .then((e) => {
               this.msg = e
               //EventBus.$emit('login')
             })
@@ -1000,7 +1058,7 @@
         connect() {
           store.login.connect(this.login)
 
-            .then((e)=> {
+            .then((e) => {
               this.msg = e
               EventBus.$emit('login')
             })
@@ -1068,14 +1126,14 @@
           showUserData: false,
         }
       },
-    
+
       created() {
         getStorage();
 
-        EventBus.$on('login', ()=> {
+        EventBus.$on('login', () => {
           console.log('logou')
           this.connected = true;
-          })
+        })
 
         EventBus.$on('showEventList', this.selectEventList)
 
@@ -1095,7 +1153,7 @@
       },
       computed: {
         load() {
-            return this.sharedEvents.isProcessing
+          return this.sharedEvents.isProcessing
         }
       },
       methods: {
@@ -1106,7 +1164,7 @@
 
           console.log('checkLogin', new Date(), this.connected)
 
-          if ( this.connected == false) {
+          if (this.connected == false) {
             setTimeout(this.checkLogin, 1000)
           }
 
@@ -1160,174 +1218,19 @@
       template: '#my-event',
     })
 
-
-
     new Vue({
       el: '#app',
-      data: {
-        // Usually an array for collection
-        todos: [],
-        // and null for documents
-        currentTodo: null,
-      },
-      render: h => h(MyEvent),
-      firestore: {
-        todos: db.collection('todos'),
-        currentTodo: db.collection('todos').doc('1'),
-      },
+      //render: h => h(MyEvent),
       components: {
-        MyEvent
+        MyEvent,
+        MyConfirm,
+        MyEventData
       },
     });
-
-
 
   </script>
 
 
-<div id="app2">
-  
-  <input v-model.trim="newTodoText" @keyup.enter="addTodo" placeholder="Add new todo" />
-  <ul>
-    <li v-for="todo in todos">
-      <input :value="todo.text" />
-      <button @click="removeTodo(todo)">X</button>
-    </li>
-  </ul>
-  {{msg}}
-  {{todos}}
-  
-</div>
-
-<script>
-  
-  
-  
-  var store2 = {
-    state: {
-      db: firebase.firestore(),
-      msg: []
-    },
-    actions: {
-      seed () {
-        var todosRef = store2.state.db.collection('todos')
-
-        todosRef.doc('mr_a').set({
-          firstName: 'Andy',
-          lastName: 'Andyson'
-        })
-
-        todosRef.doc('mr_b').set({
-          firstName: 'Ben',
-          lastName: 'Benson'
-        })
-
-        todosRef.doc('mr_c').set({
-          firstName: 'Cee',
-          lastName: 'Ceeson'
-        })
-      },
-
-      seedMsg () {
-        let msgRef = store2.state.db.collection('messages')
-
-        msgRef.add({
-          created: Date.now(),
-          users: ['mr_a', 'mr_b'],
-          messages: [
-            { id: "1", text: 'Hi there', sender: 'mr_a', created: Date.now() },
-            { id: "2", text: 'Hi to you too!', sender: 'mr_b', created: Date.now() }
-          ]
-        })
-
-        msgRef.add({
-          created: Date.now(),
-          users: ['mr_a', 'mr_c'],
-          messages: []
-        })
-      },
-
-      addMsg(msg) {
-        let msgRef = store2.state.db.collection('messages')
-
-        msgRef.add({
-          created: Date.now(),
-          users: ['mr_a'],
-          messages: [
-            { id: (new Date()).toString(), text: msg, sender: 'mr_a', created: Date.now() },
-          ]
-        })
-
-      },
-      async get () {
-        let msgRef = store2.state.db.collection('messages')
-        let msgs = await msgRef.get()
-
-        msgs.forEach((conversation) => {
-          store2.state.msg.push(conversation.data())})
-      }
-    }
-
-
-
-  }
-  const todos = db.collection('todos')
-
-  Vue.use(VueFire)
-
-  new Vue({
-    el: '#app2',
-    data: {
-      shared: store2,
-      todos: [],
-      tweets: [],
-      moments: [],
-      config: null,
-      newTodoText: '',
-    },
-    store2,
-    computed: {
-      msg() {
-        return this.shared.state.msg
-      }
-    },
-    created() {
-
-      //this.shared.actions.seed()
-      //this.shared.actions.seedMsg()
-
-      this.shared.actions.get()
-      todos.get().then((querySnapshot) => {
-        querySnapshot.forEach((doc) => {
-          console.log(`${doc.id} => ${doc.data()}`);
-        });
-      });
-       //console.log('A', this.$store.state.db)
-       console.log('B', this.shared.state.db)
-    },
-    methods: {
-      addTodo: function() {
-        if (this.newTodoText) {
-
-          this.shared.actions.addMsg(this.newTodoText);
-
-          var x = this.todos
-          var data = {finished: false,text: this.newTodoText, createAt: new Date()}
-          
-          // db2.collection('todos').add(data)
-          // //todos2.add(data)
-          //   .then(function(docRef) { console.log("Document written with ID: ", docRef.id, docRef.data()); })
-          //   .catch(function(error) { console.error("Error adding document: ", error); });
-          this.newTodoText = ''
-        }
-      },
-      removeTodo: function(todo) {
-        todos2.doc(todo.id).delete()
-      },
-      
-    },
-  })
-</script>
 
 
 </body>
