@@ -2,9 +2,9 @@
 // TODO: Replace with your project's customized code snippet
 var config = {
   apiKey: "<API_KEY>",
-  authDomain: "<PROJECT_ID>.firebaseapp.com",
+  authDomain: "22<PROJECT_ID>.firebaseapp.com",
   databaseURL: "https://<DATABASE_NAME>.firebaseio.com",
-  projectId: "UN<PROJECT_ID>",
+  projectId: "22<PROJECT_ID>",
   storageBucket: "<BUCKET>.appspot.com",
   messagingSenderId: "<SENDER_ID>",
 };
