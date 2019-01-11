@@ -920,20 +920,81 @@
           <div v-if="event">
               <my-confirm v-if="showConfirm" :component="component" :msg="msgConfirm"></my-confirm>
               <div v-for="(member, key) in members" :key="key">
-                  <span>{{member.name}}</span>
-                  <button :disabled="showConfirm" v-if="isActive(key) == false" @click.prevent="join(key, member.name, $event)">Join</button>
-                  
-                  <input v-model="price" placeholder="Inform your payment value" />
-                  <button :disabled="showConfirm" @click.prevent="pay(key, member.name, $event)">
-                      <span v-if="isPaid(key) == false">Pay</span>
-                      <span v-else>Mark as unpaid</span>
-                  </button>
-                </div>
+                <span>{{member.name}}</span>
+                <button :disabled="showConfirm" v-if="isActive(key) == false" @click.prevent="join(key, member.name, $event)">Join</button>
+                
+                <input v-model="price" placeholder="Inform your payment value" />
+                <button :disabled="showConfirm" @click.prevent="pay(key, member.name, $event)">
+                    <span v-if="isPaid(key) == false">Pay</span>
+                    <span v-else>Mark as unpaid</span>
+                </button>
+              </div>
+              <my-event-member v-for="(member,key) in members" :data="{name:member.name, key:key}" :memberKey="key" ></my-event-member>
             </div>
           </div>
         </div>
       `
     })
+
+    Vue.component('my-event-member', {
+      
+      data() {
+        return {
+          sharedEvents: store.state,
+          member: {
+            name: '',
+            join: false,
+            pay: false,
+            value: false,
+          },
+          component: 'abc',
+          showConfirm: false,
+          msgConfirm: 'yes confirm',
+        }
+      },
+
+      props: ["memberName", "memberKey","data"],/*{
+        member: {
+          type: Object,
+          required: true
+        },
+        key: {
+          type: String,
+          required: true
+        }
+      },*/
+
+      created() {
+        this.member = {
+          join: (this.getMember.join || false),
+          pay: (this.getMember.pay || false),
+          value: (this.getMember.value || 0)
+        }
+      },
+
+      computed: {
+
+        getMember() {
+          return this.sharedEvents.selectedEvent.members[this.data.key] || {}
+        }
+
+      },
+
+      methods: {
+
+        join(e) {
+
+        },
+
+        pay(e) {
+
+        }
+
+      },
+
+      template: `#my-event-member`
+      
+    });
 
 
     Vue.component('my-member-list', {
@@ -1271,6 +1332,20 @@
   </script>
 
 
+  <script type="text/template" id="my-event-member">
+    <div>
+      <my-confirm v-if="showConfirm" :component="component" :msg="msgConfirm"></my-confirm>
+      <div v-else>
+        <span>{{data.name}}</span>
+        <button v-if="!member.join" @click.prevent="join">Join</button>
+        <input model="member.price" placeholder="Inform your payment value" />
+        <button @click.prevent="pay">
+            <span v-if="!member.pay">Pay</span>
+            <span v-else>Mark as unpaid</span>
+        </button>
+      </div>
+    </div>
+  </script>
 
 
 </body>
