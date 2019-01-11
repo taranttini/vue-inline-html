@@ -29,18 +29,22 @@
 
     const db = firebase.firestore()
 
-    var members = {
+    var data_model = {
       "KEY": {
         members: {
           "key_m1": {
-            name: "aaa", email: "aaa@aaa.com",
+            name: "aaa", 
+            email: "aaa@aaa.com",
+            createdAt: '2019/01/01',
             events: {
               "key_e1": true,
               "key_e2": true,
             }
           },
           "key_m2": {
-            name: "bbb", email: "bbb@bbb.com",
+            name: "bbb", 
+            email: "bbb@bbb.com",
+            createdAt: '2019/01/01',
             events: {
               "key_e1": true,
             }
@@ -48,14 +52,18 @@
         },
         events: {
           "key_e1": {
-            name: "ccc", description: "ddd",
+            name: "ccc",
+            description: "ddd",
+            createAt: '2019/01/01',
             members: {
-              "key_m1": { join: true, pay: true, value: 10 },
-              "key_m2": { join: true, pay: false }
+              "key_m1": { join: true, pay: true, value: 10, joinedOn: '2019/01/02' },
+              "key_m2": { join: true, pay: false, value: 0, joinedOn: '2019/01/04' }
             }
           },
           "key_e2": {
-            name: "ddd", description: "ddd",
+            name: "ddd",
+            description: "ddd",
+            createAt: '2019/01/01',
             members: {
               "key_m1": { join: true, pay: true, value: 5 }
             }
@@ -91,6 +99,7 @@
       }
       */
     }
+
 
     var util = {
       guid() {
@@ -227,55 +236,40 @@
 
       member: {
 
-        payEvent(memberKey) {
+        changeData(memberKey, data) {
 
-          if (this.debug) util.log('call member.payEvent');
-          this.changeAttr(memberKey, 'pay')
-        },
-
-        joinEvent(memberKey) {
-
-          if (this.debug) util.log('call member.joinEvent');
-          this.changeAttr(memberKey, 'join')
-        },
-
-        changeAttr(memberKey, field) {
-
-          util.log('call changeAttr', memberKey, field, store.state.selectedEvent);
-
+          if (this.debug) util.log('call member.changeData');
 
           if (store.state.eventKey) {
 
             var eventKey = store.state.eventKey;
             var event = store.state.selectedEvent;
             var members = event.members || {};
-            var member = members[memberKey] || {};
+            //var member = members[memberKey] || {};
 
-            util.log(1, JSON.stringify({ e: event, u: member, us: members, s: store.state.events }));
-            switch (field) {
-              case 'join':
-                member[field] = member[field] == true ? false : true;
-                break;
-              case 'pay':
-                member.join = member.join || true;
-                member[field] = member[field] == true ? false : true;
-                break;
-            }
-            // update object members[memberKey] = member
-            Vue.set(members, memberKey, member);
+            Vue.set(members, memberKey, data);
 
-            util.log(2, JSON.stringify({ e: event, u: member, us: members, s: store.state.events }));
+            util.log(2, JSON.stringify({ e: event, u: data, us: members, s: store.state.events }));
             // update object event[members] = members
             Vue.set(event, 'members', members)
-            util.log(3, JSON.stringify({ e: event, u: member, us: members, s: store.state.events }));
-            // update object
-            store.state.events = Object.assign({}, store.state.events);
-
+            util.log(3, JSON.stringify({ e: event, u: data, us: members, s: store.state.events }));
+            
             // google firebase mode
-            google.updateEventUserData(eventKey, memberKey, member)
+            google.updateEventUserData(eventKey, memberKey, data)
               //google.updateData('events/'+eventKey+'/members', members)
               .then(() => {
-                console.log('ok')
+                // update object    
+                store.state.events = Object.assign({}, store.state.events);
+
+                var member = store.state.members[memberKey];
+                var events = member.events || {};
+                events[eventKey] = true; 
+                console.log('XXX', events, member)
+                Vue.set(member, 'events', events);
+                
+
+                google.updateData('members', memberKey, {events: events})
+
                 return 'this member has been updated.'
               })
               .catch((e) => {
@@ -285,6 +279,7 @@
               })
           }
         },
+
 
         add(member) {
 
@@ -501,7 +496,7 @@
           .ref(`${local}/${key}`)
           .update(data);
       },
-
+      
       updateEventUserData(eventKey, memberKey, data) {
         util.log('call google.add', eventKey, memberKey, data)
 
@@ -514,28 +509,41 @@
 
     }
 
-  </script>
-
-  <script>
 
     Vue.component('my-confirm', {
 
       props: {
+        value: String,
         component: String,
         msg: {
           type: String,
           required: true
         }
       },
+
+      data() {
+        return {
+          _value: this.value
+        }
+      },
       
       methods: {
-        confirm() { EventBus.$emit(this.component + 'Confirm'); },
-        cancel() { EventBus.$emit(this.component + 'Cancel'); }
+        confirm() { 
+          EventBus.$emit(this.component + 'Confirm');
+          this._value = true;
+          this.$emit('input', this._value)
+        },
+
+        cancel() { 
+          EventBus.$emit(this.component + 'Cancel'); 
+          this._value = false;
+          this.$emit('input', this._value)
+        }
       },
 
       template: `
         <div>
-          <h2>{{msg}}</h2>
+          <h2>{{msg}}</h2>{{value}}
           <button @click.prevent="confirm">Confirm</button>
           <button @click.prevent="cancel">Cancel</button>
         </div>
@@ -553,7 +561,8 @@
           showNew: false,
           editData: false,
           errorMsg: '',
-          sharedEvents: store.state
+          sharedEvents: store.state,
+          ok: 'ok'
         }
       },
 
@@ -706,7 +715,7 @@
                 <button @click.prevent="cancelEvent">Cancel</button>
               </div>
           </div>
-          <my-confirm :component='component' :msg="msgConfirm" v-else></my-confirm>
+          <my-confirm :component='component' :msg="msgConfirm" v-else :value="ok"></my-confirm>
           <p>{{ errorMsg }}</p>
         </div>
       `
@@ -763,23 +772,13 @@
     });
 
 
-    Vue.component('my-selected-event', {
+    Vue.component('my-event-selected', {
 
       data() {
         return {
           sharedEvents: store.state,
-          component: 'selectedEvent',
-          selectedKey: null,
-          showConfirm: false,
-          selectedAction: null,
-          msgConfirm: '',
-          price: null
+          price: null,
         }
-      },
-
-      created() {
-        EventBus.$on(this.component + 'Confirm', () => { this.confirmAction() });
-        EventBus.$on(this.component + 'Cancel', () => { this.cancelAction() });
       },
 
       computed: {
@@ -818,12 +817,14 @@
             if (this.event.payment === 'divided') {
               var members = this.event.members || []
               members = Object.keys(members)
-              value = this.event.price / (members.length +1)
+              value = this.event.price / (members.length)
             }
             else if (this.event.payment === 'fixed') {
               value = this.event.price
             }
             
+            this.price = value;
+
             return `${value} per user`
           }
           return ''
@@ -831,110 +832,24 @@
 
       },
 
-      methods: {
-
-        isActive(memberKey) {
-          util.log('call isAtive', memberKey);
-
-          var members = this.event.members;
-
-          if (members &&
-            members[memberKey] &&
-            members[memberKey]['join'] &&
-            members[memberKey]['join'] === true) return true;
-
-          return false;
-        },
-
-        isPaid(memberKey) {
-          util.log('call isPaid', memberKey)
-          var members = this.event.members;
-
-          if (members &&
-            members[memberKey] &&
-            members[memberKey]['pay'] &&
-            members[memberKey]['pay'] === true) return true;
-
-          return false;
-        },
-
-        selectEvent(eventKey) {
-          util.log('call selectEvent', eventKey);
-          store.selectEvent(eventKey)
-
-        },
-
-        callConfirmAction(actionName, key, memberName, actionText) {
-          this.msgConfirm = "Confirm " + actionText + " member " + memberName + "?";
-          this.selectedAction = actionName;
-          this.selectedKey = key;
-          this.showConfirm = true;
-          console.log('TODO: DEL',
-            this.msgConfirm,
-            this.selectedAction,
-            this.selectedKey,
-            this.showConfirm,
-          )
-        },
-
-        join(key, memberName, e) {
-          util.log('call join', key, memberName);
-          this.callConfirmAction('join', key, memberName, e.target.innerText);
-        },
-
-        pay(key, memberName, e) {
-          util.log('call pay', key, memberName);
-          this.callConfirmAction('pay', key, memberName, e.target.innerText);
-        },
-
-        confirmAction() {
-          console.log('TODO: DEL',
-            this.msgConfirm,
-            this.selectedAction,
-            this.selectedKey,
-            this.showConfirm,
-          )
-          switch (this.selectedAction) {
-            case 'pay':
-              store.member.payEvent(this.selectedKey);
-              break;
-            case 'join':
-              store.member.joinEvent(this.selectedKey);
-              break;
-          }
-          this.showConfirm = false;
-        },
-        // oil up 3
-        cancelAction() {
-          util.log('call cancel')
-          this.showConfirm = false;
-        },
-
-      },
-
       template: `
         <div>
-          <h2>Selected Event {{event.name}}</h2>
-          <p>Description: {{event.description}}</p>
-          <p v-if="hasPrice">{{priceDescription}}</p>
+          <div>
+            <h2>Selected Event "{{event.name}}"</h2>
+            <p>Description: {{event.description}}</p>
+            <p v-if="hasPrice">{{priceDescription}}</p>
+          </div>
           <div v-if="event">
-              <my-confirm v-if="showConfirm" :component="component" :msg="msgConfirm"></my-confirm>
-              <div v-for="(member, key) in members" :key="key">
-                <span>{{member.name}}</span>
-                <button :disabled="showConfirm" v-if="isActive(key) == false" @click.prevent="join(key, member.name, $event)">Join</button>
-                
-                <input v-model="price" placeholder="Inform your payment value" />
-                <button :disabled="showConfirm" @click.prevent="pay(key, member.name, $event)">
-                    <span v-if="isPaid(key) == false">Pay</span>
-                    <span v-else>Mark as unpaid</span>
-                </button>
-              </div>
-              <my-event-member v-for="(member,key) in members" :data="{name:member.name, key:key}" :memberKey="key" ></my-event-member>
+              <my-event-member 
+                v-for="(member,key) in members" 
+                :data="{name:member.name, key:key, price:price, paymentMode: event.payment}" 
+                />
             </div>
           </div>
         </div>
       `
     })
+
 
     Vue.component('my-event-member', {
       
@@ -942,29 +857,26 @@
         return {
           sharedEvents: store.state,
           member: {
-            name: '',
             join: false,
             pay: false,
-            value: false,
+            value: 0,
           },
-          component: 'abc',
+          confirmValue: false,
           showConfirm: false,
-          msgConfirm: 'yes confirm',
+          msgConfirm: '',
+          mode: '',
         }
       },
 
-      props: ["memberName", "memberKey","data"],/*{
-        member: {
+      props: ["data"],/*{
+        data: {
           type: Object,
-          required: true
-        },
-        key: {
-          type: String,
           required: true
         }
       },*/
 
       created() {
+
         this.member = {
           join: (this.getMember.join || false),
           pay: (this.getMember.pay || false),
@@ -975,25 +887,77 @@
       computed: {
 
         getMember() {
-          return this.sharedEvents.selectedEvent.members[this.data.key] || {}
+          var event = this.sharedEvents.selectedEvent
+          return (event.members && event.members[this.data.key]) || {}
         }
 
       },
 
       methods: {
 
-        join(e) {
-
+        callConfirm(mode) {
+          util.log('callConfirm', mode)
+          this.mode = mode
+          var action = mode == 'join' ? 'join' : this.member.pay ? 'undo payment' : 'payment';
+          this.msgConfirm = `Does confirm '${this.data.name}' ${action} this event?`
+          this.showConfirm = true
         },
 
-        pay(e) {
+        confirmClick(e) {
+          this.showConfirm = false
+          
+          if (e == 'true') {
+            switch(this.mode) {
+              case 'pay': 
+                this.member.join = true;
+                this.member.pay = !this.member.pay;
+                break;
+              case 'join': 
+                this.member.join = true;
+                break;
+            }
 
-        }
+            store.member.changeData(this.data.key, this.member);
+          }
+        },
 
       },
 
-      template: `#my-event-member`
+      template: `
+        <div>
+          <my-conf v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-conf>
+          <div v-else>
+            <span>{{data.name}}</span>
+            <button v-if="!member.join" @click.prevent="callConfirm('join')">Join</button>
+            <button v-if="!member.pay" @click.prevent="callConfirm('pay')">Pay</button>
+            <button v-else @click.prevent="callConfirm('pay')">Mark as unpaid</button>
+            <input v-model="member.value" placeholder="Inform your payment value" />
+          </div>
+        </div>
+      `
       
+    });
+
+
+    Vue.component('my-conf', {
+
+      props: ['value','msg'],
+
+      methods: {
+        confirmClick(e) { 
+          console.log(e)
+          this.$emit('click', e.target.value)
+        },
+
+      },
+
+      template:`
+        <div>
+          <h2>{{msg}}</h2>
+          <button value="true" @click.prevent="confirmClick">Confirm</button>
+          <button value="false" @click.prevent="confirmClick">Cancel</button>
+        </div>
+      `
     });
 
 
@@ -1308,7 +1272,7 @@
             <div>
               <my-event-list v-if="showEventList" />
               <my-event-data />
-              <my-selected-event v-if="showEventUsers"/>
+              <my-event-selected v-if="showEventUsers"/>
               <my-member-list v-if=showUserList />
               <my-member-data />
             </div>
@@ -1323,28 +1287,13 @@
       `,
     })
 
+
     var EventBus = new Vue();
 
     new Vue({
       el: '#app',
     });
 
-  </script>
-
-
-  <script type="text/template" id="my-event-member">
-    <div>
-      <my-confirm v-if="showConfirm" :component="component" :msg="msgConfirm"></my-confirm>
-      <div v-else>
-        <span>{{data.name}}</span>
-        <button v-if="!member.join" @click.prevent="join">Join</button>
-        <input model="member.price" placeholder="Inform your payment value" />
-        <button @click.prevent="pay">
-            <span v-if="!member.pay">Pay</span>
-            <span v-else>Mark as unpaid</span>
-        </button>
-      </div>
-    </div>
   </script>
 
 
