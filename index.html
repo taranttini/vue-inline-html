@@ -9,9 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.21/vue.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vuefire/1.4.5/vuefire.min.js"></script>
 
-  <!-- <script src="https://www.gstatic.com/firebasejs/5.7.2/firebase.js"></script> -->
-  <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/5.7.2/firebase.js"></script>
 
 </head>
 
@@ -28,6 +26,7 @@
   <script>
 
     const db = firebase.firestore()
+
 
     var data_model = {
       "KEY": {
@@ -72,6 +71,7 @@
       }
     }
 
+
     function addStorage() {
       /*
       try {
@@ -82,6 +82,7 @@
       }
       */
     }
+
 
     function getStorage() {
       /*
@@ -162,15 +163,7 @@
               reject('Event name needs have a minimum 3 characters.')
             }
             else {
-              // old mode
-              //var key = util.guid();
-              //store.state.events[key] = event;
-              //update object
-              //store.state.events = Object.assign({}, store.state.events)
-              //addStorage();
-              //resolve('Event has been created');
 
-              // google firebase mode
               google.addData('events', event).then((e) => {
 
                 store.state.isProcessing = false;
@@ -245,28 +238,41 @@
             var eventKey = store.state.eventKey;
             var event = store.state.selectedEvent;
             var members = event.members || {};
-            //var member = members[memberKey] || {};
 
             Vue.set(members, memberKey, data);
 
-            util.log(2, JSON.stringify({ e: event, u: data, us: members, s: store.state.events }));
-            // update object event[members] = members
+            util.log(2, JSON.stringify({ e: event/*, u: data, us: members, s: store.state.events */}));
+            // update object event[members] = membersconst
             Vue.set(event, 'members', members)
-            util.log(3, JSON.stringify({ e: event, u: data, us: members, s: store.state.events }));
+            util.log(3, JSON.stringify({ e: event/*, u: data, us: members, s: store.state.events */}));
             
+            const qty = Object.keys(members).length;
+            let price = 0;
+
+
+            if(event.payment == 'divided'){
+              price = event.price / qty;
+              event.pricePerUser = price;
+              
+            }
+
             // google firebase mode
             google.updateEventUserData(eventKey, memberKey, data)
-              //google.updateData('events/'+eventKey+'/members', members)
+
               .then(() => {
                 // update object    
-                store.state.events = Object.assign({}, store.state.events);
 
                 var member = store.state.members[memberKey];
                 var events = member.events || {};
                 events[eventKey] = true; 
-                console.log('XXX', events, member)
+                // update member events
                 Vue.set(member, 'events', events);
-                
+
+                if(price>0) {
+                  // update event price
+                  Vue.set(store.state.events, eventKey, event )
+                  google.updateData('events', eventKey, event)  
+                }
 
                 google.updateData('members', memberKey, {events: events})
 
@@ -290,22 +296,18 @@
               member.name === undefined ||
               member.name.toString().trim().length === 0) {
               reject('blank name is not valid.')
-              return;
-            }
-            // old mode
-            //var key = util.guid()
-            //store.state.members[key] = member;
-            //addStorage();
-            //resolve('this member has been added.')
+            
+            } else {
 
-            // google firebase mode
-            google.addData('members', member).then((e) => {
-              store.state.members[e] = member;
-              resolve('this member has been added.')
-            }).catch((e) => {
-              util.log('error on google.addData', e)
-              reject(e);
-            })
+              // google firebase mode
+              google.addData('members', member).then((e) => {
+                store.state.members[e] = member;
+                resolve('this member has been added.')
+              }).catch((e) => {
+                util.log('error on google.addData', e)
+                reject(e);
+              })
+            }
 
           })
         },
@@ -317,29 +319,29 @@
           var hasKey = store.state.members.hasOwnProperty(memberKey)
 
           return new Promise((resolve, reject) => {
+            
             if (!hasKey) {
+
               reject('member not found')
-              return;
-            }
-            if (member.name === undefined ||
+              
+            } else if (member.name === undefined ||
               member.name.toString().trim().length === 0) {
+
               reject('blank name is not valid.')
-              return;
+              
+            } else {
+
+              // google firebase mode
+              google.updateData('members', memberKey, member)
+                .then(() => {
+                  Vue.set(store.state.members, memberKey, member)
+                  resolve('this member has been updated.')
+                })
+                .catch((e) => {
+                  util.log('error on google.updateData', e)
+                  reject(e)
+                })
             }
-            // old mode
-            Vue.set(store.state.members, memberKey, member)
-            //resolve('this member has been updated.')
-
-
-            // google firebase mode
-            google.updateData('members', memberKey, member)
-              .then(() => {
-                resolve('this member has been updated.')
-              })
-              .catch((e) => {
-                util.log('error on google.updateData', e)
-                reject(e)
-              })
 
           })
 
@@ -483,14 +485,11 @@
             return e
           });
 
-        // create new google data
-        //return firebase.database().ref(local).set(data);
       },
 
       updateData(local, key, data) {
         util.log('call google.add', local, data)
 
-        //var uid = firebase.auth().currentUser.uid;
         // update google data
         return firebase.database()
           .ref(`${local}/${key}`)
@@ -510,74 +509,27 @@
     }
 
 
-    Vue.component('my-confirm', {
-
-      props: {
-        value: String,
-        component: String,
-        msg: {
-          type: String,
-          required: true
-        }
-      },
-
-      data() {
-        return {
-          _value: this.value
-        }
-      },
-      
-      methods: {
-        confirm() { 
-          EventBus.$emit(this.component + 'Confirm');
-          this._value = true;
-          this.$emit('input', this._value)
-        },
-
-        cancel() { 
-          EventBus.$emit(this.component + 'Cancel'); 
-          this._value = false;
-          this.$emit('input', this._value)
-        }
-      },
-
-      template: `
-        <div>
-          <h2>{{msg}}</h2>{{value}}
-          <button @click.prevent="confirm">Confirm</button>
-          <button @click.prevent="cancel">Cancel</button>
-        </div>
-      `
-    })
-
-
     Vue.component('my-event-data', {
 
       data() {
         return {
-          component: 'newEvent',
           event: {},
           mode: '',
-          showNew: false,
           editData: false,
           errorMsg: '',
           sharedEvents: store.state,
-          ok: 'ok'
+          showConfirm: false,
         }
       },
 
       created() {
 
-        EventBus.$on(this.component + 'Confirm', () => { this.confirmEvent() });
-
-        EventBus.$on(this.component + 'Cancel', () => { this.cancelConfirm() });
-
         EventBus.$on('showEventEdit', () => {
           this.event = Object.assign({}, this.sharedEvents.selectedEvent)
           this.event.payment = this.event.payment ? this.event.payment : '0';
-          this.mode = 'Edit'
+          this.mode = 'edit'
           this.errorMsg = ''
-          this.showNew = true
+          this.showConfirm = false
           this.editData = true
         })
 
@@ -588,9 +540,9 @@
             payment: '0',
             price: null,
           }
-          this.mode = 'New'
+          this.mode = 'new'
           this.errorMsg = ''
-          this.showNew = true
+          this.showConfirm = false
           this.editData = true
         })
 
@@ -630,51 +582,56 @@
 
       methods: {
 
-        addEvent() {
-          util.log('call addEvent');
-          this.errorMsg = ''
-          this.showNew = false;
-        },
+        confirmClick(e) {
+          
+          if (e == 'true') {
+            var data = {};
+            switch(this.mode) {
+              case 'Edit': 
+                data = store.event.update(this.event)
+                break;
+              default: 
+                data = store.event.add(this.event)
+                break;
+            }
 
-        confirmEvent() {
-          util.log('call confirmEvent');
-
-          var data = {};
-
-
-          if (this.mode === 'Edit') {
-            data = store.event.update(this.event)
-          }
-          else {
-            data = store.event.add(this.event)
-          }
 
           data.then((e) => {
             console.log('ok')
+            this.showConfirm = false
             this.gotoEventList();
           })
             .catch((e) => {
               console.log('not ok', e)
               this.errorMsg = e
-              this.showNew = true
+              this.showConfirm = false
             })
+
+          } else {
+            this.showConfirm = false
+          } 
+          
+        },
+
+        addEvent() {
+          util.log('call addEvent');
+          const mode = this.mode.toLowerCase();
+          const name = this.event.name || '';
+
+          this.msgConfirm = `Confirm ${mode} event "${name}"?`;
+          this.errorMsg = ''
+          this.showConfirm = true;
         },
 
         clean() {
           this.event = {}
           this.errorMsg = ''
-          this.showNew = false
         },
 
         gotoEventList() {
           util.log('call gotoEventList');
           this.clean();
           EventBus.$emit('showEventList');
-        },
-
-        cancelConfirm() {
-          util.log('call cancelConfirm');
-          this.showNew = true;
         },
 
         cancelEvent() {
@@ -686,9 +643,11 @@
       },
 
       template: `
-        <div v-if="editData">  
+        <div v-if="editData">
+        <my-confirm v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-confirm>
+        <div v-else>
           <div v-if="isProcessing">processing...</div>
-          <div v-if="showNew"> 
+          <div> 
               <div>
                   <h2>{{ mode }} Event</h2>
               </div>
@@ -715,8 +674,8 @@
                 <button @click.prevent="cancelEvent">Cancel</button>
               </div>
           </div>
-          <my-confirm :component='component' :msg="msgConfirm" v-else :value="ok"></my-confirm>
           <p>{{ errorMsg }}</p>
+        </div>
         </div>
       `
 
@@ -818,11 +777,14 @@
               var members = this.event.members || []
               members = Object.keys(members)
               value = this.event.price / (members.length)
+
+              value = isFinite(value) ? value : this.event.price
             }
             else if (this.event.payment === 'fixed') {
               value = this.event.price
             }
             
+            ;
             this.price = value;
 
             return `${value} per user`
@@ -842,7 +804,7 @@
           <div v-if="event">
               <my-event-member 
                 v-for="(member,key) in members" 
-                :data="{name:member.name, key:key, price:price, paymentMode: event.payment}" 
+                :data="{name:member.name, key:key}" 
                 />
             </div>
           </div>
@@ -865,15 +827,16 @@
           showConfirm: false,
           msgConfirm: '',
           mode: '',
+          xx: '',
         }
       },
 
-      props: ["data"],/*{
+      props: {
         data: {
           type: Object,
           required: true
         }
-      },*/
+      },
 
       created() {
 
@@ -882,13 +845,17 @@
           pay: (this.getMember.pay || false),
           value: (this.getMember.value || 0)
         }
+
       },
 
       computed: {
 
+        event() {
+          return this.sharedEvents.selectedEvent;
+        },
+
         getMember() {
-          var event = this.sharedEvents.selectedEvent
-          return (event.members && event.members[this.data.key]) || {}
+          return (this.event.members && this.event.members[this.data.key]) || {}
         }
 
       },
@@ -898,14 +865,15 @@
         callConfirm(mode) {
           util.log('callConfirm', mode)
           this.mode = mode
-          var action = mode == 'join' ? 'join' : this.member.pay ? 'undo payment' : 'payment';
-          this.msgConfirm = `Does confirm '${this.data.name}' ${action} this event?`
+          //var action = mode == 'join' ? 'join' : this.member.pay ? 'undo payment' : 'payment';
+          this.msgConfirm = `Does confirm '${this.data.name}' pay ${this.member.value}?`
           this.showConfirm = true
         },
 
         confirmClick(e) {
           this.showConfirm = false
           
+
           if (e == 'true') {
             switch(this.mode) {
               case 'pay': 
@@ -925,12 +893,11 @@
 
       template: `
         <div>
-          <my-conf v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-conf>
+          <my-confirm v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-confirm>
           <div v-else>
             <span>{{data.name}}</span>
             <button v-if="!member.join" @click.prevent="callConfirm('join')">Join</button>
-            <button v-if="!member.pay" @click.prevent="callConfirm('pay')">Pay</button>
-            <button v-else @click.prevent="callConfirm('pay')">Mark as unpaid</button>
+            <button @click.prevent="callConfirm('pay')">Pay</button>
             <input v-model="member.value" placeholder="Inform your payment value" />
           </div>
         </div>
@@ -939,12 +906,12 @@
     });
 
 
-    Vue.component('my-conf', {
+    Vue.component('my-confirm', {
 
       props: ['value','msg'],
 
       methods: {
-        confirmClick(e) { 
+        doClick(e) { 
           console.log(e)
           this.$emit('click', e.target.value)
         },
@@ -954,8 +921,8 @@
       template:`
         <div>
           <h2>{{msg}}</h2>
-          <button value="true" @click.prevent="confirmClick">Confirm</button>
-          <button value="false" @click.prevent="confirmClick">Cancel</button>
+          <button value="true" @click.prevent="doClick">Confirm</button>
+          <button value="false" @click.prevent="doClick">Cancel</button>
         </div>
       `
     });
@@ -1010,7 +977,9 @@
           memberKey: '',
           mode: '',
           msg: '',
-          editData: false
+          editData: false,
+          showConfirm: false,
+          msgConfirm: '',
         }
       },
 
@@ -1029,7 +998,9 @@
         });
 
         EventBus.$on('showUserNew', (member) => {
-          this.member = {}
+          this.member = {
+            name:'', email:''
+          }
           this.mode = 'New'
           this.msg = ''
           this.editData = true
@@ -1039,7 +1010,38 @@
 
       methods: {
 
+        confirmClick(e) {
+          if (e == 'true') {
+            var data = {};
+
+            if (this.mode === 'Edit') {
+              data = store.member.update(this.memberName, this.member)
+            } else {
+              data = store.member.add(this.member)
+            }
+            data.then((e) => {
+              this.showConfirm = false
+              this.goToUserList()
+            })
+            data.catch((e) => {
+              this.msg = e
+            }) 
+
+          } else {
+
+            this.showConfirm = false
+
+          } 
+
+        },
+
         save() {
+          
+          const mode = this.mode.toLowerCase();
+          const name = this.member.name || '';
+          this.msgConfirm = `Confirm ${mode} user "${name}"?`;
+          this.showConfirm = true;
+          /*
           util.log('call save')
           var data = {};
 
@@ -1054,6 +1056,7 @@
           data.catch((e) => {
             this.msg = e
           })
+          */
         },
 
         cancel() {
@@ -1071,6 +1074,8 @@
 
       template: `
         <div v-if="editData">
+          <my-confirm v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-confirm>
+          <div v-else>
           <h2>{{mode}} User</h2>
           <div>
             <label>Name</label>
@@ -1085,6 +1090,7 @@
             <button @click.prevent="cancel">Cancel</button>
           </div>
           <p>{{msg}}</p>
+          </div>
         </div>
       `
     })
@@ -1290,9 +1296,8 @@
 
     var EventBus = new Vue();
 
-    new Vue({
-      el: '#app',
-    });
+
+    new Vue({el: '#app'});
 
   </script>
 
