@@ -1,0 +1,30 @@
+{
+  "parserOptions": {
+    "ecmaVersion": 6,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
+  "rules": {
+    
+    
+    
+    "indent": [2,2, {
+        "SwitchCase": 2
+    }],
+    "max-len": [0, 120, 4],
+    "quotes": [2, "single"],
+    "camelcase": [2, {"properties": "always"}],
+    "key-spacing": [2, {
+      "beforeColon": false,
+      "afterColon": true
+    }],
+    "default-case":"warn",
+    "brace-style": [2, "1tbs"],
+        "array-bracket-spacing": [2, "never"],
+    "comma-spacing": 1,
+    "eol-last": 2,
+    "semi": "warn"
+  }
+}
