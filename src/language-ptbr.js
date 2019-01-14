@@ -29,8 +29,9 @@ LANG = {
   EVENT_INFORM_PRICE_TOTAL: 'Informe o valor total do evento',
   EVENT_CONFIRM_EDIT: 'Confirmar a edição do evento',
   EVENT_CONFIRM_NEW: 'Confirmar o novo evento',
-  EVENT_CONFIRM_USER_PAY: 'Confirma que _NAME_ pagou _VALUE_?',
-  EVENT_INFORM_PAYMENT_VALUE: 'Informar valor do pagamento',
+  EVENT_CONFIRM_USER_PAY: 'Confirma que "_NAME_" pagou R$ "_VALUE_"?',
+  EVENT_CONFIRM_USER_JOIN: 'Confirmar que "_NAME_" participa?',
+  EVENT_INFORM_PAYMENT_AMOUNT: 'Informar valor do pagamento',
 
   USER: 'Usuário',
   USER_LIST: 'Lista de Usuários',

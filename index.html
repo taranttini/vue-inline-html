@@ -6,16 +6,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Vue Inline Html</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.21/vue.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/5.7.2/firebase.js"></script>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/vuetify/1.4.1/vuetify.min.css" ref="stylesheet">
+
+  
+  <link href="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.min.css" rel="stylesheet">
 </head>
 
 <body>
-  <div id="app"></div>
+  
+  <div id="app"><v-app></v-app></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.21/vue.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vuetify/1.4.1/vuetify.min.js"></script>
   <!-- https://www.gstatic.com/firebasejs/ui/3.5.1/firebase-ui-auth__pt.js -->
   <!-- this file have config for you firebase -->
   <script src="./src/firebase-config.js"></script>
   <script src="./src/language-ptbr.js"></script>
   <script src="./src/app.js"></script>
+  <script>
+    //Vue.use(Vuetify);
+    //new Vue({ el: '#app' })
+  </script>
 </body>
 </html>

@@ -28,7 +28,8 @@ LANG = {
   EVENT_INFORM_PRICE_TOTAL: 'Inform event price total',
   EVENT_CONFIRM_EDIT: 'Do confirm event edit',
   EVENT_CONFIRM_NEW: 'Do confirm event new',
-  EVENT_CONFIRM_USER_PAY: 'Does confirm "_NAME_" has pay _VALUE_?',
+  EVENT_CONFIRM_USER_PAY: 'Does confirm "_NAME_" has pay $ "_VALUE_"?',
+  EVENT_CONFIRM_USER_JOIN: 'Does confirm "_NAME_" join in?',
   EVENT_INFORM_PAYMENT_AMOUNT: 'Inform payment amount',
   
   USER: 'User',

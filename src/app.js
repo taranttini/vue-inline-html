@@ -122,28 +122,31 @@ var store = {
 
     add(event) {
       util.log('store.event.add', event);
-      store.state.isProcessing = true;
+      
+      store.setProcessing(true);
 
       return new Promise((resolve, reject) => {
 
         if (util.isNull(event) || util.isEmpty(event.name)) {
-          store.state.isProcessing = false;
+
+          store.setProcessing(false);
           reject('Event name is necessary');
         }
         if (util.isLessLength(event.name, 3)) {
-          store.state.isProcessing = false;
+
+          store.setProcessing(false);
           reject('Event name needs have a minimum 3 characters.');
 
         } else {
 
           google.addData('events', event).then((e) => {
 
-            store.state.isProcessing = false;
+            store.setProcessing(false);
             store.state.events[e] = event;
             resolve('this events has been added.');
           }).catch((e) => {
 
-            store.state.isProcessing = false;
+            store.setProcessing(false);
             util.log('error on google.addData', e);
             reject(e);
           });
@@ -154,22 +157,33 @@ var store = {
     update(event) {
       util.log('store.event.update', event);
 
+      store.setProcessing(true);
+
       return new Promise((resolve, reject) => {
 
         if (util.isNull(event)) {
+
+          store.setProcessing(false);
           reject('event not found');
+
         } else if (util.isEmpty(event.name)) {
+
+          store.setProcessing(false);
           reject('blank name is not valid.');
+
         } else {
+
           var key = store.state.eventKey;
 
           google.updateData('events', key, event)
             .then(() => {
               Vue.set(store.state.events, key, event);
+              store.setProcessing(false);
               resolve('this event has been updated.');
             })
             .catch((e) => {
               util.log('error on google.updateData', e);
+              store.setProcessing(false);
               reject(e);
             });
         }
@@ -197,6 +211,8 @@ var store = {
 
     changeData(memberKey, data) {
       util.log('store.member.changeData', memberKey, data);
+
+      store.setProcessing(true);
 
       if (store.state.eventKey) {
 
@@ -241,11 +257,14 @@ var store = {
 
             google.updateData('members', memberKey, { events: events });
 
+            store.setProcessing(false);
             return 'this member has been updated.';
           })
           .catch((e) => {
             console.log('not ok');
             util.log('error on google.updateData', e);
+
+            store.setProcessing(false);
             return e;
           });
       }
@@ -255,10 +274,14 @@ var store = {
     add(member) {
       util.log('store.member.add', member);
 
+      store.setProcessing(true);
+
       return new Promise((resolve, reject) => {
         if (
           member.name === undefined ||
           member.name.toString().trim().length === 0) {
+          
+          store.setProcessing(false);
           reject('blank name is not valid.');
 
         } else {
@@ -266,8 +289,10 @@ var store = {
           // google firebase mode
           google.addData('members', member).then((e) => {
             store.state.members[e] = member;
+            store.setProcessing(false);
             resolve('this member has been added.');
           }).catch((e) => {
+            store.setProcessing(false);
             util.log('error on google.addData', e);
             reject(e);
           });
@@ -279,17 +304,21 @@ var store = {
     update(memberKey, member) {
       util.log('store.member.update', memberKey, member);
 
+      store.setProcessing(true);
+
       var hasKey = store.state.members.hasOwnProperty(memberKey);
 
       return new Promise((resolve, reject) => {
 
         if (!hasKey) {
 
+          store.setProcessing(false);
           reject('member not found');
 
         } else if (member.name === undefined ||
           member.name.toString().trim().length === 0) {
 
+          store.setProcessing(false);
           reject('blank name is not valid.');
 
         } else {
@@ -298,10 +327,12 @@ var store = {
           google.updateData('members', memberKey, member)
             .then(() => {
               Vue.set(store.state.members, memberKey, member);
+              store.setProcessing(false);
               resolve('this member has been updated.');
             })
             .catch((e) => {
               util.log('error on google.updateData', e);
+              store.setProcessing(false);
               reject(e);
             });
         }
@@ -334,6 +365,7 @@ var google = {
   isLogged() {
     util.log('google.isLogged');
 
+    return localStorage.logged == 'true' ? true : false;
     return firebase.auth().currentUser ? true : false;
   },
 
@@ -370,16 +402,20 @@ var google = {
   login(account) {
     util.log('google.login', account);
 
+    store.setProcessing(true);
+
     return new Promise((resolve, reject) => {
 
       firebase.auth().signInWithEmailAndPassword(account.email, account.password)
         .then((e) => {
           console.log(e);
-
+          localStorage.logged = 'true';
+          store.setProcessing(false);
           resolve(e);
         })
         .catch((error) => {
           console.log(error);
+          store.setProcessing(false);
           // Handle Errors here.
           var errorCode = error.code;
           var errorMessage = error.message;
@@ -399,18 +435,19 @@ var google = {
   logoff() {
     util.log('google.logoff');
 
+    localStorage.logged = null;
     firebase.auth().signOut();
   },
 
   loadDB() {
     util.log('google.loadDB');
 
-    store.state.isProcessing = true;
+    store.setProcessing(true);
 
     firebase.database().ref('/').once('value')
       .then(function (snap) {
 
-        store.state.isProcessing = false;
+        store.setProcessing(false);
         console.log(snap.val());
 
         var data = snap.val();
@@ -418,7 +455,10 @@ var google = {
         store.state.members = data.members;
         store.state.events = data.events;
 
-      });
+      })
+      .catch(()=> {
+        store.setProcessing(false);
+      })
   },
 
   addData(local, data) {
@@ -473,6 +513,11 @@ Vue.component('my-event-data', {
       sharedEvents: store.state,
       showConfirm: false,
       msgConfirm: '',
+      items: [
+        {text: LANG.EVENT_FIXED, value: 'fixed'},
+        {text: LANG.EVENT_VARIED, value: 'varied'},
+        {text: LANG.EVENT_DIVIDED, value: 'divided'}
+      ],
       LANG,
     };
   },
@@ -551,6 +596,7 @@ Vue.component('my-event-data', {
       util.log('my-event-data methods.confirmClick', e);
 
       if (e == 'true') {
+
         var data = new Promise((req, res)=>{});
         
         switch (this.mode) {
@@ -613,40 +659,35 @@ Vue.component('my-event-data', {
   },
 
   template: `
-    <div v-if="editData">
+    <v-card v-if="editData">
       <my-confirm v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-confirm>
-      <div v-else>
-        <div v-if="isProcessing">{{ LANG.PROCESSING }}</div>
-        <div> 
-            <div>
-                <h2>{{ title }}</h2>
-            </div>
-            <div>
-              <input type="text" v-model="event.name" :placeholder="LANG.EVENT_NAME" @keyup.enter="addEvent" />
-            </div>
-            <div>
-                <textarea v-model="event.description" :placeholder="LANG.EVENT_DESCRIPTION" @keyup.enter="addEvent">
-                </textarea>
-            </div>
-            <div>
-              <select v-model="event.payment">
-                <option disabled value="0">{{LANG.EVENT_PAYMENT_MODE}}</option>
-                <option value='fixed'>{{LANG.EVENT_FIXED}}</option>
-                <option value='varied'>{{LANG.EVENT_VARIED}}</option>
-                <option value='divided'>{{LANG.EVENT_DIVIDED}}</option>
-              </select>
-            </div>
-            <div v-if="needsPayment">
-              <input v-model="event.price" :placeholder="paymentDescription" @keyup.enter="addEvent" />
-            </div>
-            <div>
-              <button @click.prevent="addEvent">{{LANG.SAVE}}</button>
-              <button @click.prevent="cancelEvent">{{LANG.CANCEL}}</button>
-            </div>
-        </div>
-        <p>{{ errorMsg }}</p>
-      </div>
-    </div>
+      <v-card-text>
+        <p v-if="isProcessing">{{ LANG.PROCESSING }}</p>
+        <v-form>
+          <v-text-field 
+            @keyup.enter="addEvent" v-model="event.name" :label="LANG.EVENT_NAME"
+            color="teal" outline type="text" />
+          <v-textarea 
+            @keyup.enter="addEvent" v-model="event.description" :label="LANG.EVENT_DESCRIPTION"
+            color="teal" outline type="text" />
+          <v-select 
+            v-model="event.payment" :label="LANG.EVENT_PAYMENT_MODE" 
+            :items="items" item-text="text" item-value="value"
+            color="teal" outline />
+          <template v-if="needsPayment">
+            <v-text-field
+            @keyup.enter="addEvent" v-model="event.price" :label="paymentDescription" 
+            color="teal" outline type="text" />
+          </template>
+        </v-form>
+        
+      </v-card-text>
+      <v-card-action>
+            <v-btn color="primary" @click.prevent="addEvent">{{LANG.SAVE}}</v-btn>
+            <v-btn color="secondary" @click.prevent="cancelEvent">{{LANG.CANCEL}}</v-btn>
+      </v-card-action>
+      <p>{{ errorMsg }}</p>
+    </v-card>
   `
 
 });
@@ -691,21 +732,45 @@ Vue.component('my-event-list', {
     isActive(eventKey) {
       util.log('my-event-list methods.isActive', eventKey);
 
-      return this.sharedEvents.eventKey == eventKey ? '> ' : '';
+      return this.sharedEvents.eventKey == eventKey ? true : false;
     },
 
   },
 
   template: `
-    <div>
-      <h2>{{LANG.EVENT_LIST}}</h2>
-      <ul>
-        <li v-for="(event, key) in events" :key="key">
-          <a href="#" @click.prevent="selectEvent(key)">{{isActive(key)}}{{event.name}}</a>
-          <button @click.prevent="editEvent(key)">{{LANG.EDIT}}</button>
-        </li>
-      </ul>
-    </div>
+    <v-card>
+      <v-list two-line subheader>
+        <v-subheader>
+          {{LANG.EVENT_LIST}}
+        </v-subheader>
+        <v-divider></v-divider>
+
+        <template v-for="(event, key, idx) in events">
+
+          <!--<v-divider inset v-if="idx > 0"></v-divider>-->
+          <v-divider v-if="idx > 0"></v-divider>
+          
+          <v-list-tile @click=""
+             :class="{'teal lighten-5': isActive(key) }" >
+            <!--<v-list-tile-action></v-list-tile-action>-->
+            <v-list-tile-content @click.prevent="selectEvent(key)">
+              <v-list-tile-title>{{ isActive(key) }}{{ event.name }}</v-list-tile-title>
+              <v-list-tile-sub-title>{{ event.description }}</v-list-tile-sub-title> 
+            </v-list-tile-content>
+              
+            <v-list-tile-action @click.prevent="editEvent(key)">
+              <v-tooltip left>  
+                <v-btn icon large slot="activator">
+                  <v-icon large color="teal">edit</v-icon>
+                  </v-btn>
+                <span>{{ LANG.EDIT }}</span>
+              </v-tooltip>  
+            </v-list-tile-action>  
+          </v-list-tile>
+        </template>
+
+      </v-list>
+    </v-card>
   `
 });
 
@@ -788,20 +853,30 @@ Vue.component('my-event-selected', {
   },
 
   template: `
-    <div>
-      <div>
-        <h2>{{LANG.EVENT_SELECTED}} "{{event.name}}"</h2>
+    <v-layout justify-center v-if="event">
+      <v-container fluid grid-list-xl >
+      <v-layout row wrap>
+
+      <v-flex xs12>
+      <v-card >
+        <v-layout row justify-center>
+        <v-flex xs11> 
+        <h2>{{event.name}}</h2>
         <p>{{LANG.EVENT_DESCRIPTION}}: {{event.description}}</p>
         <p v-if="hasPrice">{{priceDescription}}</p>
-      </div>
-      <div v-if="event">
-          <my-event-member 
-            v-for="(member,key) in members" 
-            :data="{name:member.name, key:key}" 
-            />
-        </div>
-      </div>
-    </div>
+        </v-flex>
+        </v-layout>
+        <v-spacer></v-spacer>
+      </v-card >
+      </v-flex>
+
+        
+      <my-event-member v-for="(member,key) in members" 
+          :data="{name:member.name, key:key}" ></my-event-member>
+          
+        </v-layout>
+      </v-container>
+    </v-layout>
   `
 });
 
@@ -818,6 +893,7 @@ Vue.component('my-event-member', {
       showConfirm: false,
       msgConfirm: '',
       mode: '',
+      
       LANG,
     };
   },
@@ -862,6 +938,9 @@ Vue.component('my-event-member', {
       util.log('my-event-member methods.callConfirm', mode);
 
       this.mode = mode;
+
+      const msg = mode == 'pay' ? this.LANG.EVENT_CONFIRM_USER_PAY : this.LANG.EVENT_CONFIRM_USER_JOIN;
+
       this.msgConfirm = msg
         .replace('_NAME_', this.data.name)
         .replace('_VALUE_', this.member.value);
@@ -874,7 +953,7 @@ Vue.component('my-event-member', {
       this.showConfirm = false;
 
 
-      if (e == 'true') {
+      if (e == true) {
         switch (this.mode) {
 
             case 'pay':
@@ -897,17 +976,33 @@ Vue.component('my-event-member', {
   },
 
   template: `
-    <div>
+    <v-flex x12>
       <my-confirm v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-confirm>
-      <div v-else>
-        <span>{{data.name}}</span>
-        <button v-if="!member.join" @click.prevent="callConfirm('join')">{{LANG.JOIN}}</button>
-        <button @click.prevent="callConfirm('pay')">{{LANG.PAY}}</button>
-        <input v-model="member.value" :placeholder="LANG.EVENT_INFORM_PAYMENT_AMOUNT" />
-      </div>
-    </div>
-  `
+      <v-card>
+        <v-layout row justify-center>
+          <v-flex xs6 md7 text-xs-center> 
+            <span class="headline">{{data.name}}</span>
+            <v-form>
+              <v-text-field 
+                v-model="member.value" :label="LANG.EVENT_INFORM_PAYMENT_AMOUNT"
+                small  color="teal" type="text" />
+            </v-form>
+          </v-flex>
 
+          <v-flex  xs3 md2>
+            <div><v-btn v-if="!member.join" @click.prevent="callConfirm('join')" 
+              depressed block color="primary">{{LANG.JOIN}}</v-btn></div>
+            <div><v-btn @click.prevent="callConfirm('pay')"
+              depressed block color="primary">{{LANG.PAY}}</v-btn></div>
+          </v-flex>
+        </v-layout>
+    
+        <v-spacer></v-spacer>
+      </v-card>
+    </v-flex>
+    
+  `
+  
 });
 
 
@@ -930,20 +1025,26 @@ Vue.component('my-confirm', {
 
   methods: {
 
-    click(e) {
-      util.log('my-confirm methods.click', e);
+    click(value) {
+      util.log('my-confirm methods.click', value);
 
-      this.$emit('click', e.target.value);
+      this.$emit('click', value);
     },
 
   },
 
   template: `
-    <div>
-      <h2>{{msg}}</h2>
-      <button value="true" @click.prevent="click">{{LANG.CONFIRM}}</button>
-      <button value="false" @click.prevent="click">{{LANG.CANCEL}}</button>
-    </div>
+    <v-dialog persistent value="true">
+      <v-card>
+        <v-card-title class="headline">{{msg}}</v-card-title>
+        <v-card-text></v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn value="false" color="green darken-1" flat @click="click(false)">{{LANG.CANCEL}}</v-btn>
+          <v-btn value="true" color="green darken-1" flat @click="click(true)">{{LANG.CONFIRM}}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   `
 });
 
@@ -985,14 +1086,37 @@ Vue.component('my-member-list', {
   },
 
   template: `
-    <div>
-      <h2>{{LANG.USER_LIST}}</h2>
-      <ul>
-        <li v-for="(member, key) in members">
-          <span>{{ member.name }}</span><button @click.prevent="edit(key, member)">{{LANG.EDIT}}</button>
-        </li>
-      </ul>
-    </div>
+    <v-card>
+      <v-list subheader>
+        <v-subheader>
+          {{LANG.USER_LIST}}
+        </v-subheader>
+        <v-divider></v-divider>
+
+        <template v-for="(member, key, idx) in members">
+
+          <!--<v-divider inset v-if="idx > 0"></v-divider>-->
+          <v-divider v-if="idx > 0"></v-divider>
+          
+          <v-list-tile>
+            <!--<v-list-tile-action></v-list-tile-action>-->
+            <v-list-tile-content>
+              <v-list-tile-title>{{ member.name }}</v-list-tile-title>
+            </v-list-tile-content>
+              
+            <v-list-tile-action @click.prevent="edit(key, member)">
+              <v-tooltip left>  
+                <v-btn icon large slot="activator">
+                  <v-icon large color="teal">edit</v-icon>
+                  </v-btn>
+                <span>{{ LANG.EDIT }}</span>
+              </v-tooltip>  
+            </v-list-tile-action>  
+          </v-list-tile>
+        </template>
+
+      </v-list>
+    </v-card>
   `
 });
 
@@ -1010,6 +1134,7 @@ Vue.component('my-member-data', {
       editData: false,
       showConfirm: false,
       msgConfirm: '',
+      sharedEvents: store.state,
       LANG,
     };
   },
@@ -1048,6 +1173,14 @@ Vue.component('my-member-data', {
       return this.mode == 'Edit' ? LANG.USER_EDIT : LANG.USER_NEW;
     },
 
+
+    isProcessing() {
+      util.log('my-member-data computed.isProcessing');
+
+      return this.sharedEvents.isProcessing;
+    },
+
+
   },
 
   methods: {
@@ -1055,7 +1188,7 @@ Vue.component('my-member-data', {
     confirmClick(e) {
       util.log('my-member-data methods.confirmClick', e);
 
-      if (e == 'true') {
+      if (e == true) {
         var data = new Promise((res, rej)=>{});
 
         if (this.mode === 'Edit') {
@@ -1108,25 +1241,26 @@ Vue.component('my-member-data', {
   },
 
   template: `
-    <div v-if="editData">
+    <v-card v-if="editData">
       <my-confirm v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-confirm>
-      <div v-else>
-      <h2>{{title}}</h2>
-      <div>
-        <label>{{LANG.NAME}}</label>
-        <input type="text" v-model="member.name"  @keyup.enter="save" :placeholder="LANG.USER_NAME" />
-      </div>
-      <div>
-          <label>{{LANG.EMAIL}}</label>
-          <input type="email" v-model="member.email" @keyup.enter="save" :placeholder="LANG.USER_EMAIL" />
-      </div>
-      <div>
-        <button @click.prevent="save">{{LANG.SAVE}}</button>
-        <button @click.prevent="cancel">{{LANG.CANCEL}}</button>
-      </div>
-      <p>{{msg}}</p>
-      </div>
-    </div>
+      <v-card-text>
+        <p v-if="isProcessing">{{ LANG.PROCESSING }}</p>
+        <v-form>
+          <v-text-field 
+            @keyup.enter="save" v-model="member.name" :label="LANG.USER_NAME"
+            color="teal" outline type="text" />
+          <v-text-field 
+            @keyup.enter="save" v-model="member.email" :label="LANG.USER_EMAIL"
+            color="teal" outline type="email" />
+        </v-form>
+        
+      </v-card-text>
+      <v-card-action>
+            <v-btn color="primary" @click.prevent="save">{{LANG.SAVE}}</v-btn>
+            <v-btn color="secondary" @click.prevent="cancel">{{LANG.CANCEL}}</v-btn>
+      </v-card-action>
+      <p>{{ msg }}</p>
+    </v-card>
   `
 });
 
@@ -1174,17 +1308,29 @@ Vue.component('my-login', {
   },
 
   template: `
-    <div>
-      <div>
-        <div><input type="email" v-model="login.email" :placeholder="LANG.EMAIL" @keyup.enter="connect" /></div>
-        <div><input type="password" v-model="login.password" :placeholder="LANG.PASSWORD" @keyup.enter="connect" /></div>
-      </div>
-      <div>
-        <button @click.prevent="connect">{{LANG.LOGIN}}</button>
-        <button @click.prevent="create">Create</button>
-      </div>
-      <p>{{msg}}</p>
-    </div>
+    <v-flex xs12 sm8 md8>
+      <v-card class="elevation-12">
+        <v-toolbar dark color="primary">
+          <v-toolbar-title>Login form</v-toolbar-title>
+        </v-toolbar>
+        <v-card-text>
+          <v-form>
+            <v-text-field 
+              @keyup.enter="connect" :label="LANG.EMAIL" v-model="login.email"
+              prepend-icon="mail" name="login" type="email" />
+            <v-text-field 
+              @keyup.enter="connect" :label="LANG.PASSWORD" v-model="login.password"
+              prepend-icon="lock" name="password" type="password"></v-text-field>
+          </v-form>
+          <p>{{msg}}</p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn @click.prevent="connect" color="primary">{{LANG.LOGIN}}</v-btn>
+          <v-btn @click.prevent="create" color="warning">Create</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-flex>
   `
 });
 
@@ -1195,16 +1341,26 @@ Vue.component('my-event', {
     util.log('my-event data');
 
     return {
+      showNav: null,
       connected: false,
       sharedEvents: store.state,
-      showEventList: true,
-      showEventNew: false,
+
+      showEventList: false,
       showEventData: false,
       showEventUsers: false,
 
       showUserList: false,
       showUserData: false,
+
+      title: LANG.EVENT_LIST,
+      LANG,
     };
+  },
+
+  mounted() {
+    util.log('my-event mounted');
+
+    this.selectEventList();
   },
 
   created() {
@@ -1219,19 +1375,17 @@ Vue.component('my-event', {
 
     EventBus.$on('showEventList', this.selectEventList);
 
-    EventBus.$on('showEventUsers', () => { 
-      this.selectEventUsers(); 
-    });
+    EventBus.$on('showEventUsers', this.selectEventUsers);
 
-    EventBus.$on('showUserList', () => {
-      this.selectUserList(); 
-    });
+    EventBus.$on('showUserList', this.selectUserList);
 
     EventBus.$on('showEventEdit', () => { 
+      this.title = this.LANG.EVENT_EDIT;
       this.hideComponents(); 
     });
 
     EventBus.$on('showUserEdit', () => { 
+      this.title = this.LANG.USER_EDIT;
       this.hideComponents(); 
     });
 
@@ -1239,11 +1393,13 @@ Vue.component('my-event', {
 
     google.loadDB();
 
+    
+
   },
 
   computed: {
 
-    load() {
+    isload() {
       util.log('my-event computed.load');
 
       return this.sharedEvents.isProcessing;
@@ -1274,6 +1430,7 @@ Vue.component('my-event', {
       util.log('my-event methods.selectEventUsers');
 
       this.hideComponents();
+      this.title = this.LANG.EVENT;
       this.showEventUsers = true;
     },
 
@@ -1281,6 +1438,7 @@ Vue.component('my-event', {
       util.log('my-event methods.selectEventNew');
 
       this.hideComponents();
+      this.title = this.LANG.EVENT_NEW;
       EventBus.$emit('showEventNew');
     },
 
@@ -1288,6 +1446,7 @@ Vue.component('my-event', {
       util.log('my-event methods.selectEventList');
 
       this.hideComponents();
+      this.title = this.LANG.EVENT_LIST;
       this.showEventList = true;
     },
 
@@ -1295,6 +1454,7 @@ Vue.component('my-event', {
       util.log('my-event methods.selectUserList');
 
       this.hideComponents();
+      this.title = this.LANG.USER_LIST;
       this.showUserList = true;
     },
 
@@ -1302,14 +1462,16 @@ Vue.component('my-event', {
       util.log('my-event methods.selectUserNew');
 
       this.hideComponents();
+      this.title = this.LANG.USER_NEW;
       EventBus.$emit('showUserNew');
     },
 
     hideComponents() {
       util.log('my-event methods.hideComponents');
 
+      this.showNav = null;
       this.showEventList = false;
-      this.showEventNew = false;
+      //this.showEventNew = false;
       this.showUserList = false;
       this.showEventUsers = false;
       EventBus.$emit('hideUserData');
@@ -1319,41 +1481,152 @@ Vue.component('my-event', {
   },
 
   template: `
-    <div>
-      <my-login v-if="!connected"></my-login>
-      <div v-else>
-        <button @click.prevent="logoff">{{LANG.LOGOUT}}</button>
-        <h3>Menu</h3>
-        <ul>
-          <li>{{LANG.EVENT}}</li>
-          <li><button @click.prevent="selectEventList">{{LANG.EVENT_LIST}}</button></li>
-          <li><button @click.prevent="selectEventNew">{{LANG.EVENT_NEW}}</button></li>
-          <li>{{LANG.USER}}</li>
-          <li><button @click.prevent="selectUserList">{{LANG.USER_LIST}}</button></li>
-          <li><button @click.prevent="selectUserNew">{{LANG.USER_NEW}}</button></li>
-        </ul>
-        <h3>Screen</h3>
-        <div>
-          <my-event-list v-if="showEventList" />
-          <my-event-data />
-          <my-event-selected v-if="showEventUsers"/>
-          <my-member-list v-if=showUserList />
-          <my-member-data />
-        </div>
+    <v-app>
 
-        <div>
-          <h3>Code</h3>
-          {{load}}
-          <pre>{{sharedEvents}}</pre>
-        </div>
-      </div>
-    </div>
+      <v-dialog
+        v-model="isload"
+        persistent
+        width="300"
+        >
+        <v-card color="primary" dark>
+          <v-card-text>Carregando
+            <v-progress-linear indeterminate color="white" class="mb-0"></v-progress-linear>
+          </v-card-text>
+        </v-card>
+      </v-dialog>
+
+      <v-navigation-drawer app fixed value="true" v-model="showNav" v-if="connected">
+
+        <v-toolbar flat>
+          <v-list>
+            <v-list-tile>
+              <v-list-tile-title class="title">Meus Eventos</v-list-tile-title>
+            </v-list-tile>
+          </v-list>
+        </v-toolbar>
+
+        <v-divider></v-divider>
+
+        <v-list>
+
+          <v-list-tile>
+            <v-list-tile-content>
+              <v-list-tile-title>MENU</v-list-tile-title>
+            </v-list-tile-content>
+          </v-list-tile>
+
+          
+          <v-divider></v-divider>
+
+          <v-list-tile class="blue-grey lighten-5">
+            <v-list-tile-action><v-icon>book</v-icon></v-list-tile-action>
+            <v-list-tile-content>
+              <v-list-tile-title>{{LANG.EVENT}}</v-list-tile-title>
+            </v-list-tile-content>
+          </v-list-tile>
+          
+          <v-list-tile @click.prevent="selectEventList">
+          <v-list-tile-action></v-list-tile-action>
+          <v-list-tile-content>
+            <v-list-tile-title>{{LANG.EVENT_LIST}}</v-list-tile-title>
+          </v-list-tile-content>
+          <v-list-tile-action><v-icon>list</v-icon></v-list-tile-action>
+          </v-list-tile>
+
+          <v-list-tile @click.prevent="selectEventNew">
+          <v-list-tile-action></v-list-tile-action>
+          <v-list-tile-content>
+            <v-list-tile-title>{{LANG.EVENT_NEW}}</v-list-tile-title>
+          </v-list-tile-content>
+          <v-list-tile-action><v-icon>add</v-icon></v-list-tile-action>
+          </v-list-tile>
+
+          <v-divider></v-divider>
+
+          <v-list-tile class="blue-grey lighten-5">
+          <v-list-tile-action><v-icon>person</v-icon></v-list-tile-action>
+          <v-list-tile-content>
+            <v-list-tile-title>{{LANG.USER}}</v-list-tile-title>
+          </v-list-tile-content>
+          </v-list-tile>
+
+          <v-list-tile  @click.prevent="selectUserList">
+          <v-list-tile-action></v-list-tile-action>
+          <v-list-tile-content>
+            <v-list-tile-title>{{LANG.USER_LIST}}</v-list-tile-title>
+          </v-list-tile-content>
+          <v-list-tile-action><v-icon>list</v-icon></v-list-tile-action>
+          </v-list-tile>
+
+          <v-list-tile @click.prevent="selectUserNew">
+          <v-list-tile-action></v-list-tile-action>
+          <v-list-tile-content>
+            <v-list-tile-title >{{LANG.USER_NEW}}</v-list-tile-title>
+          </v-list-tile-content>
+          <v-list-tile-action><v-icon>add</v-icon></v-list-tile-action>
+          </v-list-tile>
+
+          <v-divider></v-divider>
+
+          <v-list-tile @click.prevent="logoff"  class="blue-grey lighten-5">
+            <v-list-tile-action><v-icon>exit_to_app</v-icon></v-list-tile-action>
+            <v-list-tile-content>
+              <v-list-tile-title>{{LANG.LOGOUT}}</v-list-tile-title>
+            </v-list-tile-content>
+          </v-list-tile>
+
+        </v-list>
+      </v-navigation-drawer>
+
+      <v-toolbar color="teal" dark fixed app v-if="connected">
+        <v-toolbar-side-icon @click.stop="showNav = !showNav"></v-toolbar-side-icon>
+        <v-toolbar-title>{{title}}</v-toolbar-title>
+      </v-toolbar>
+        
+      <v-content>
+        <v-container fluid >
+
+          <v-layout justify-center v-if="!connected">
+            <my-login />
+          </v-layout>
+
+          <template v-else> 
+           
+          <v-layout justify-center align-center>
+          <v-flex x12 sm10 md10 >
+      <!--<my-confirm v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-confirm>-->
+      
+            <my-event-list v-if="showEventList" />
+            
+            <my-event-data />
+            
+            <my-event-selected v-if="showEventUsers"/>
+            
+            <my-member-list v-if=showUserList />
+            
+            <my-member-data />
+            
+            
+            </v-flex>
+            </v-layout>
+            <!--
+            <v-card>
+            <div><h3>Code</h3>{{isload}}<pre>{{sharedEvents}}</pre></div>
+            </v-card>-->
+
+          </template>
+          
+
+        </v-container>
+      </v-content>
+    </v-app>
   `,
 });
 
 
-var EventBus = new Vue();
+const EventBus = new Vue();
 
+Vue.use(Vuetify);
 
 new Vue({
   render: (h) => h('my-event')
