@@ -595,7 +595,7 @@ Vue.component('my-event-data', {
     confirmClick(e) {
       util.log('my-event-data methods.confirmClick', e);
 
-      if (e == 'true') {
+      if (e == true) {
 
         var data = new Promise((req, res)=>{});
         
@@ -1409,6 +1409,10 @@ Vue.component('my-event', {
 
   methods: {
 
+    loadData() {
+
+      google.loadDB();
+    },
     checkLogin() {
       util.log('my-event methods.checkLogin');
 
@@ -1581,6 +1585,13 @@ Vue.component('my-event', {
       <v-toolbar color="teal" dark fixed app v-if="connected">
         <v-toolbar-side-icon @click.stop="showNav = !showNav"></v-toolbar-side-icon>
         <v-toolbar-title>{{title}}</v-toolbar-title>
+        <v-spacer></v-spacer>
+        <v-tooltip bottom>
+          <v-btn @click.prevent="loadData" icon large slot="activator" >
+            <v-icon large>replay</v-icon>
+          </v-btn>
+          <span>Source</span>
+        </v-tooltip>
       </v-toolbar>
         
       <v-content>
