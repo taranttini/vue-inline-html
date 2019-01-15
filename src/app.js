@@ -506,6 +506,7 @@ Vue.component('my-event-data', {
     util.log('my-event-data data');
 
     return {
+      snackbar: false,
       event: {},
       mode: '',
       editData: false,
@@ -615,6 +616,7 @@ Vue.component('my-event-data', {
           })
           .catch((e) => {
             this.showConfirm = false;
+            this.snackbar = true;
             this.errorMsg = e;
           });
 
@@ -632,6 +634,7 @@ Vue.component('my-event-data', {
       
       this.msgConfirm = `${msg} "${name}"?`;
       this.errorMsg = '';
+      this.snackbar = false;
       this.showConfirm = true;
     },
 
@@ -659,35 +662,32 @@ Vue.component('my-event-data', {
   },
 
   template: `
-    <v-card v-if="editData">
+    <v-form v-if="editData">
       <my-confirm v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-confirm>
-      <v-card-text>
-        <p v-if="isProcessing">{{ LANG.PROCESSING }}</p>
-        <v-form>
-          <v-text-field 
-            @keyup.enter="addEvent" v-model="event.name" :label="LANG.EVENT_NAME"
-            color="teal" outline type="text" />
-          <v-textarea 
-            @keyup.enter="addEvent" v-model="event.description" :label="LANG.EVENT_DESCRIPTION"
-            color="teal" outline type="text" />
-          <v-select 
-            v-model="event.payment" :label="LANG.EVENT_PAYMENT_MODE" 
-            :items="items" item-text="text" item-value="value"
-            color="teal" outline />
-          <template v-if="needsPayment">
-            <v-text-field
-            @keyup.enter="addEvent" v-model="event.price" :label="paymentDescription" 
-            color="teal" outline type="text" />
-          </template>
-        </v-form>
+      <v-text-field 
+        @keyup.enter="addEvent" v-model="event.name" :label="LANG.EVENT_NAME"
+        color="teal" outline type="text" />
+      <v-textarea 
+        @keyup.enter="addEvent" v-model="event.description" :label="LANG.EVENT_DESCRIPTION"
+        color="teal" outline type="text" />
+      <v-select 
+        v-model="event.payment" :label="LANG.EVENT_PAYMENT_MODE" 
+        :items="items" outline item-text="text" item-value="value"
+        color="teal" />
+      <template v-if="needsPayment">
+        <v-text-field
+        @keyup.enter="addEvent" v-model="event.price" :label="paymentDescription" 
+        color="teal" outline type="text" />
+      </template>
         
-      </v-card-text>
-      <v-card-action>
-            <v-btn color="primary" @click.prevent="addEvent">{{LANG.SAVE}}</v-btn>
-            <v-btn color="secondary" @click.prevent="cancelEvent">{{LANG.CANCEL}}</v-btn>
-      </v-card-action>
-      <p>{{ errorMsg }}</p>
-    </v-card>
+      <v-btn depressed color="success" @click.prevent="addEvent">{{LANG.SAVE}}</v-btn>
+      <v-btn depressed color="error" @click.prevent="cancelEvent">{{LANG.CANCEL}}</v-btn>
+
+      <v-snackbar v-model="snackbar" color="red" timeout="6000"vertical="true">
+      {{ errorMsg }}
+      <v-btn dark flat @click="snackbar = false">{{LANG.CLOSE}}</v-btn>
+    </v-snackbar>
+    </v-form>
   `
 
 });
@@ -754,14 +754,14 @@ Vue.component('my-event-list', {
              :class="{'teal lighten-5': isActive(key) }" >
             <!--<v-list-tile-action></v-list-tile-action>-->
             <v-list-tile-content @click.prevent="selectEvent(key)">
-              <v-list-tile-title>{{ isActive(key) }}{{ event.name }}</v-list-tile-title>
+              <v-list-tile-title>{{ event.name }}</v-list-tile-title>
               <v-list-tile-sub-title>{{ event.description }}</v-list-tile-sub-title> 
             </v-list-tile-content>
               
             <v-list-tile-action @click.prevent="editEvent(key)">
               <v-tooltip left>  
-                <v-btn icon large slot="activator">
-                  <v-icon large color="teal">edit</v-icon>
+                <v-btn icon slot="activator">
+                  <v-icon color="teal">edit</v-icon>
                   </v-btn>
                 <span>{{ LANG.EDIT }}</span>
               </v-tooltip>  
@@ -1128,9 +1128,10 @@ Vue.component('my-member-data', {
 
     return {
       member: {},
+      snackbar: false,
       memberKey: '',
       mode: '',
-      msg: '',
+      errorMsg: '',
       editData: false,
       showConfirm: false,
       msgConfirm: '',
@@ -1150,7 +1151,7 @@ Vue.component('my-member-data', {
       this.member = Object.assign({}, member.data);
       this.memberName = member.key;
       this.mode = 'Edit';
-      this.msg = '';
+      this.errorMsg = '';
       this.editData = true;
     });
 
@@ -1159,7 +1160,7 @@ Vue.component('my-member-data', {
         name: '', email: ''
       };
       this.mode = 'New';
-      this.msg = '';
+      this.errorMsg = '';
       this.editData = true;
     });
 
@@ -1192,8 +1193,7 @@ Vue.component('my-member-data', {
         var data = new Promise((res, rej)=>{});
 
         if (this.mode === 'Edit') {
-          data = 
-          store.member.update(this.memberName, this.member);
+          data = store.member.update(this.memberName, this.member);
           
         } else {
           data = store.member.add(this.member);
@@ -1204,7 +1204,8 @@ Vue.component('my-member-data', {
           this.goToUserList();
         });
         data.catch((e) => {
-          this.msg = e;
+          this.errorMsg = e;
+          this.snackbar = true;
         });
 
       } else {
@@ -1241,26 +1242,23 @@ Vue.component('my-member-data', {
   },
 
   template: `
-    <v-card v-if="editData">
+    <v-form v-if="editData">
       <my-confirm v-if="showConfirm" :msg="msgConfirm" @click="confirmClick"></my-confirm>
-      <v-card-text>
-        <p v-if="isProcessing">{{ LANG.PROCESSING }}</p>
-        <v-form>
-          <v-text-field 
-            @keyup.enter="save" v-model="member.name" :label="LANG.USER_NAME"
-            color="teal" outline type="text" />
-          <v-text-field 
-            @keyup.enter="save" v-model="member.email" :label="LANG.USER_EMAIL"
-            color="teal" outline type="email" />
-        </v-form>
         
-      </v-card-text>
-      <v-card-action>
-            <v-btn color="primary" @click.prevent="save">{{LANG.SAVE}}</v-btn>
-            <v-btn color="secondary" @click.prevent="cancel">{{LANG.CANCEL}}</v-btn>
-      </v-card-action>
-      <p>{{ msg }}</p>
-    </v-card>
+      <v-text-field 
+        @keyup.enter="save" v-model="member.name" :label="LANG.USER_NAME"
+        color="teal" outline type="text" />
+      <v-text-field 
+        @keyup.enter="save" v-model="member.email" :label="LANG.USER_EMAIL"
+        color="teal" outline type="email" />
+    
+        <v-btn depressed color="success" @click.prevent="save">{{LANG.SAVE}}</v-btn>
+        <v-btn depressed color="error" @click.prevent="cancel">{{LANG.CANCEL}}</v-btn>
+
+      <v-snackbar v-model="snackbar" color="red" timeout="6000"vertical="true">
+      {{ errorMsg }}
+      <v-btn dark flat @click="snackbar = false">{{LANG.CLOSE}}</v-btn>
+    </v-form>
   `
 });
 
@@ -1590,7 +1588,7 @@ Vue.component('my-event', {
           <v-btn @click.prevent="loadData" icon large slot="activator" >
             <v-icon large>replay</v-icon>
           </v-btn>
-          <span>Source</span>
+          <span>Atualizar</span>
         </v-tooltip>
       </v-toolbar>
         

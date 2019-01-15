@@ -12,6 +12,8 @@ LANG = {
   PASSWORD: 'Password',
   LOGIN: 'Login',
   LOGOUT: 'Logout',
+  CLOSE: 'Close',
+  UPDATE: 'Update',
 
   EVENT: 'Event',
   EVENT_LIST: 'Event List',

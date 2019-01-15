@@ -13,6 +13,8 @@ LANG = {
   PASSWORD: 'Senha',
   LOGIN: 'Conectar',
   LOGOUT: 'Sair',
+  CLOSE: 'Fechar',
+  UPDATE: 'Atualizar',
 
   EVENT: 'Evento',
   EVENT_LIST: 'Lista de Eventos',
