@@ -139,6 +139,7 @@ var store = {
 
         } else {
 
+          event.createAt = new Date().toJSON();
           google.addData('events', event).then((e) => {
 
             store.setProcessing(false);
@@ -174,6 +175,8 @@ var store = {
         } else {
 
           var key = store.state.eventKey;
+
+          event.updateAt = new Date().toJSON();
 
           google.updateData('events', key, event)
             .then(() => {
@@ -243,11 +246,11 @@ var store = {
           .then(() => {
             // update object    
 
-            var member = store.state.members[memberKey];
-            var events = member.events || {};
-            events[eventKey] = true;
-            // update member events
-            Vue.set(member, 'events', events);
+            // var member = store.state.members[memberKey];
+            // var events = member.events || {};
+            // events[eventKey] = true;
+            // // update member events
+            // Vue.set(member, 'events', events);
 
             if (price > 0) {
               // update event price
@@ -255,7 +258,7 @@ var store = {
               google.updateData('events', eventKey, event);
             }
 
-            google.updateData('members', memberKey, { events: events });
+            // google.updateData('members', memberKey, { events: events });
 
             store.setProcessing(false);
             return 'this member has been updated.';
@@ -286,6 +289,7 @@ var store = {
 
         } else {
 
+          member.createAt = new Date().toJSON();
           // google firebase mode
           google.addData('members', member).then((e) => {
             store.state.members[e] = member;
@@ -322,6 +326,8 @@ var store = {
           reject('blank name is not valid.');
 
         } else {
+
+          member.updateAt = new Date().toJSON();
 
           // google firebase mode
           google.updateData('members', memberKey, member)
