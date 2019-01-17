@@ -6,5 +6,7 @@ Study Code using Vue on simple file of HTML
 - vuex
 
 **using only**
+- firebase
 - vanilla js
 - vue
+- vuetify

@@ -143,6 +143,7 @@ var store = {
           google.addData('events', event).then((e) => {
 
             store.setProcessing(false);
+            store.state.events = store.state.events || {};
             store.state.events[e] = event;
             resolve('this events has been added.');
           }).catch((e) => {
@@ -292,6 +293,7 @@ var store = {
           member.createAt = new Date().toJSON();
           // google firebase mode
           google.addData('members', member).then((e) => {
+            store.state.members = store.state.members || {};
             store.state.members[e] = member;
             store.setProcessing(false);
             resolve('this member has been added.');
@@ -458,13 +460,13 @@ var google = {
 
         var data = snap.val();
         store.state.googleData = data;
-        store.state.members = data.members;
-        store.state.events = data.events;
+        store.state.members = data.members || {};
+        store.state.events = data.events || {};
 
       })
       .catch(()=> {
         store.setProcessing(false);
-      })
+      });
   },
 
   addData(local, data) {
@@ -706,8 +708,15 @@ Vue.component('my-event-list', {
 
     return {
       sharedEvents: store.state,
-      LANG
+      LANG,
+      query: '',
     };
+  },
+
+  created() {
+    EventBus.$on('changeText', (text) => {
+      this.query = text;
+    });
   },
 
   computed: {
@@ -715,6 +724,17 @@ Vue.component('my-event-list', {
     events() {
       util.log('my-event-list computed.events');
 
+      var events = this.sharedEvents.events; 
+
+      if (this.query.length >= 3) {
+        let list = {};
+        for ( event in events) { 
+          if ( events[event].name.toLowerCase().indexOf(this.query.toLowerCase()) >= 0 ) {
+            list[event] = events[event];
+          }
+        }
+        return list;
+      }
       return this.sharedEvents.events;
     }
   },
@@ -747,7 +767,7 @@ Vue.component('my-event-list', {
     <v-card>
       <v-list two-line subheader>
         <v-subheader>
-          {{LANG.EVENT_LIST}}
+          {{LANG.EVENT_LIST.toUpperCase()}}
         </v-subheader>
         <v-divider></v-divider>
 
@@ -790,7 +810,12 @@ Vue.component('my-event-selected', {
       sharedEvents: store.state,
       price: null,
       LANG,
+      query: '',
     };
+  },
+
+  created() {
+
   },
 
   computed: {
@@ -804,7 +829,7 @@ Vue.component('my-event-selected', {
     event() {
       util.log('my-event-selected computed.event');
 
-      var event = this.sharedEvents.selectedEvent;
+      let event = this.sharedEvents.selectedEvent;
 
       switch (event.payment) {
 
@@ -813,7 +838,7 @@ Vue.component('my-event-selected', {
             break;
 
           case 'divided':
-            var members = event.members || [];
+            let members = event.members || [];
             members = Object.keys(members);
             this.price = event.price / (members.length + 1);
             break;
@@ -1063,6 +1088,7 @@ Vue.component('my-member-list', {
     return {
       sharedEvents: store.state,
       LANG,
+      query: '',
     };
   },
 
@@ -1071,9 +1097,28 @@ Vue.component('my-member-list', {
     members() {
       util.log('my-member-list computed.members');
 
-      return this.sharedEvents.members;
+
+      let members = this.sharedEvents.members; 
+
+      if (this.query.length >= 3) {
+        let list = {};
+        for (let member in members) { 
+          if ( members[member].name.toLowerCase().indexOf(this.query.toLowerCase()) >= 0 ) {
+            list[member] = members[member];
+          }
+        }
+        return list;
+      }
+
+      return members;
     }
 
+  },
+
+  created() {
+    EventBus.$on('changeText', (text) => {
+      this.query = text;
+    });
   },
 
   methods: {
@@ -1095,7 +1140,7 @@ Vue.component('my-member-list', {
     <v-card>
       <v-list subheader>
         <v-subheader>
-          {{LANG.USER_LIST}}
+          {{LANG.USER_LIST.toUpperCase()}}
         </v-subheader>
         <v-divider></v-divider>
 
@@ -1348,6 +1393,9 @@ Vue.component('my-event', {
       showNav: null,
       connected: false,
       sharedEvents: store.state,
+      showQuery: false,
+      showList: false,
+      queryText: '',
 
       showEventList: false,
       showEventData: false,
@@ -1434,6 +1482,12 @@ Vue.component('my-event', {
       google.logoff();
     },
 
+    doQuery(text) {
+      util.log('my-event methods.doQuery', text);
+
+      EventBus.$emit('changeText', text);
+    },
+
     selectEventUsers() {
       util.log('my-event methods.selectEventUsers');
 
@@ -1456,6 +1510,7 @@ Vue.component('my-event', {
       this.hideComponents();
       this.title = this.LANG.EVENT_LIST;
       this.showEventList = true;
+      this.showList = true;
     },
 
     selectUserList() {
@@ -1464,6 +1519,7 @@ Vue.component('my-event', {
       this.hideComponents();
       this.title = this.LANG.USER_LIST;
       this.showUserList = true;
+      this.showList = true;
     },
 
     selectUserNew() {
@@ -1478,6 +1534,10 @@ Vue.component('my-event', {
       util.log('my-event methods.hideComponents');
 
       this.showNav = null;
+      this.showQuery = false;
+      this.showList = false;
+      this.queryText = '';
+
       this.showEventList = false;
       //this.showEventNew = false;
       this.showUserList = false;
@@ -1511,6 +1571,8 @@ Vue.component('my-event', {
               <v-list-tile-title class="title">Meus Eventos</v-list-tile-title>
             </v-list-tile>
           </v-list>
+
+
         </v-toolbar>
 
         <v-divider></v-divider>
@@ -1588,11 +1650,17 @@ Vue.component('my-event', {
 
       <v-toolbar color="teal" dark fixed app v-if="connected">
         <v-toolbar-side-icon @click.stop="showNav = !showNav"></v-toolbar-side-icon>
-        <v-toolbar-title>{{title}}</v-toolbar-title>
-        <v-spacer></v-spacer>
+        <v-toolbar-title v-if="!showQuery">{{title}}</v-toolbar-title>
+        <v-spacer v-if="!showQuery"></v-spacer>
+        <v-text-field v-if="showQuery" flat solo-inverted label="Search" v-model.lazy="queryText" @input="doQuery"></v-text-field>
+  
+        <v-btn v-if="showList" icon @click.prevent="showQuery = !showQuery">
+          <v-icon>search</v-icon>
+        </v-btn>
+
         <v-tooltip bottom>
-          <v-btn @click.prevent="loadData" icon large slot="activator" >
-            <v-icon large>replay</v-icon>
+          <v-btn @click.prevent="loadData" icon slot="activator" >
+            <v-icon >replay</v-icon>
           </v-btn>
           <span>Atualizar</span>
         </v-tooltip>
